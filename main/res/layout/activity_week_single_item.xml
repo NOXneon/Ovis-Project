@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<android.support.v7.widget.CardView
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_height="wrap_content"
+    android:elevation="4dp"
+    android:layout_width="match_parent">
+
+    <RelativeLayout
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content">
+
+        <neon.ovis.LetterImageView
+            android:layout_width="70dp"
+            android:layout_height="70dp"
+            android:id="@+id/ivletter"
+            android:layout_margin="10dp" />
+
+        <TextView
+            android:id="@+id/tvday"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:textStyle="bold"
+            android:layout_toRightOf="@id/ivletter"
+            android:textSize="24sp" />
+    </RelativeLayout>
+
+</android.support.v7.widget.CardView>
