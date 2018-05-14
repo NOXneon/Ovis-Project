@@ -69,7 +69,7 @@ public class TDB extends SQLiteOpenHelper
 
     public void adjust()
     {
-        this.getWritableDatabase().delete(TABLE_tb,"subject = 'subject' ",null );
+        this.getWritableDatabase().delete(TABLE_tb,"subject = 'Subject' ",null );
     }
 
     public ArrayList<Line> getClassesOf(String date)

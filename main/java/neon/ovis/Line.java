@@ -3,6 +3,7 @@ package neon.ovis;
 import android.graphics.Color;
 
 import java.util.Random;
+import java.util.regex.Pattern;
 
 public class Line
 {
@@ -108,8 +109,80 @@ public class Line
     public int dayOfMonth()
     {
         String date = getStartDate().trim();
-        String[] val = date.split("/");
+        String[] val = date.split(Pattern.quote("/"));
         int day = Integer.parseInt(val[0]);
         return  day;
+    }
+
+    public int getMonth()
+    {
+        String date = getStartDate().trim();
+        String[] val = date.split(Pattern.quote("/"));
+        int month = Integer.parseInt(val[1]);
+        return  month;
+    }
+
+    public int getYear()
+    {
+        String date = getStartDate().trim();
+        String[] val = date.split(Pattern.quote("/"));
+        int year = Integer.parseInt(val[2]);
+        return  year;
+    }
+
+    public int getHour()
+    {
+        String date = getStartTime().trim();
+        String[] val = date.split(Pattern.quote("."));
+        int hour = Integer.parseInt(val[0]);
+        return  hour;
+    }
+
+    public int getMinute()
+    {
+        String date = getStartTime().trim();
+        String[] val = date.split(Pattern.quote("."));
+        int minute = Integer.parseInt(val[1]);
+        return  minute;
+    }
+
+    public int EndDayOfMonth()
+    {
+        String date = getStartDate().trim();
+        String[] val = date.split(Pattern.quote("/"));
+        int day = Integer.parseInt(val[0]);
+        return  day;
+    }
+
+    public int getEndMonth()
+    {
+        String date = getStartDate().trim();
+        String[] val = date.split(Pattern.quote("/"));
+        int month = Integer.parseInt(val[1]);
+        return  month;
+    }
+
+    public int getEndYear()
+    {
+        String date = getStartDate().trim();
+        String[] val = date.split(Pattern.quote("/"));
+        int year = Integer.parseInt(val[2]);
+        return  year;
+    }
+
+    public int getEndHour()
+    {
+        String date = getStartTime().trim();
+        String[] val = date.split(Pattern.quote("."));
+        int hour = Integer.parseInt(val[0]);
+        return  hour;
+    }
+
+    public int getEndMinute()
+    {
+        String date = getStartTime().trim();
+        String[] val = date.split(Pattern.quote("."));
+        int minute = Integer.parseInt(val[1]);
+        return  minute;
     }
 }

@@ -90,7 +90,7 @@ public class HomeActivity extends AppCompatActivity {
         myWeek.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                Intent intent = new Intent(HomeActivity.this,WeekActivity.class);
+                Intent intent = new Intent(HomeActivity.this,BasicActivity.class);
                 HomeActivity.this.startActivity(intent);
             }
         });
@@ -125,6 +125,7 @@ public class HomeActivity extends AppCompatActivity {
             public void onClick(View v) {
                 final Calendar myCalendar = Calendar.getInstance();
 
+
                 DatePickerDialog.OnDateSetListener seekDate = new DatePickerDialog.OnDateSetListener() {
 
                     @Override
@@ -133,19 +134,26 @@ public class HomeActivity extends AppCompatActivity {
                         myCalendar.set(Calendar.YEAR, year);
                         myCalendar.set(Calendar.MONTH, monthOfYear);
                         myCalendar.set(Calendar.DAY_OF_MONTH, dayOfMonth);
-                    }
+                        String date;
 
+                        Intent intent = new Intent(HomeActivity.this,DayActivity.class);
+                        if(dayOfMonth<=9)
+                        {
+                            date = " 0"+dayOfMonth+"/"+(monthOfYear+1)+"/"+year;
+                        }
+                        else
+                        {
+                            date = " "+dayOfMonth+"/"+(monthOfYear+1)+"/"+year;
+                        }
+
+                        intent.putExtra("Date", date);
+                        HomeActivity.this.startActivity(intent);
+                    }
                 };
 
                 new DatePickerDialog(HomeActivity.this, AlertDialog.THEME_DEVICE_DEFAULT_LIGHT, seekDate, myCalendar
                         .get(Calendar.YEAR), myCalendar.get(Calendar.MONTH),
                         myCalendar.get(Calendar.DAY_OF_MONTH)).show();
-
-
-
-                Intent intent = new Intent(HomeActivity.this,MainActivity.class);
-                HomeActivity.this.startActivity(intent);
-                HomeActivity.this.finish();
             }
         });
 
