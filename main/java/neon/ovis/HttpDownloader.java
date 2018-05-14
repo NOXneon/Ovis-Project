@@ -3,8 +3,7 @@ package neon.ovis;
 import java.io.IOException;
 
 public class HttpDownloader {
-    public static void main(final String[] args) throws java.io.FileNotFoundException
-    {
+    public static void main(final String[] args) throws java.io.FileNotFoundException, InterruptedException {
         Thread thread = new Thread(new Runnable() {
 
             @Override
@@ -23,6 +22,22 @@ public class HttpDownloader {
             }
         });
 
+        thread.join();
         thread.start();
+    }
+
+    public static void dl(final String[] args)
+    {
+        try
+        {
+            //String fileURL = "http://gobierno.euitio.uniovi.es/grado/gd/?y=17-18&t=S2&uo=dsUO257514";
+            String fileURL = args[0];
+
+            //String saveDir = "C://Users/wafig/Desktop";
+            String saveDir = args[1];
+            HttpDownloadUtility.downloadFile(fileURL, saveDir);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
     }
 }

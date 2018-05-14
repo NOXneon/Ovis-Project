@@ -34,6 +34,9 @@ public class LoginActivity extends AppCompatActivity {
     private static final String TAG = "";
     private TDB db;
     private static String filePath = "/sdcard/Download/plan.csv";
+    ProgressDialog progressDialog;
+    private String progTitle = "Refresh";
+    private String progMessage = "We are refreshing your timetable";
 
     @Override
     protected void onCreate(Bundle savedInstanceState)
@@ -52,6 +55,13 @@ public class LoginActivity extends AppCompatActivity {
 
         if(!SUO.isEmpty())
         {
+            progressDialog = new ProgressDialog(this);
+            progressDialog.setMessage(progMessage); // Setting Message
+            progressDialog.setTitle(progTitle); // Setting Title
+            progressDialog.setProgressStyle(ProgressDialog.STYLE_SPINNER); // Progress Dialog Style Spinner
+            progressDialog.show(); // Display Progress Dialog
+            progressDialog.setCancelable(false);
+
             String fileURL = "http://gobierno.euitio.uniovi.es/grado/gd/?y=17-18&t=S2&uo="+SUO;
             String saveDir = "/sdcard/Download";
             final String[] params = new String[2];
@@ -60,25 +70,40 @@ public class LoginActivity extends AppCompatActivity {
 
             if(isNetworkAvailable())
             {
+                /*
+                try
+                {
+                    HttpDownloader.dl(params);
+                    readFileData(filePath);
+                    progressDialog.dismiss();
+                }
+                catch (FileNotFoundException e)
+                {
+                    e.printStackTrace();
+                }
+                progressDialog.dismiss();
+                */
+
                 new Thread(new Runnable() {
                     @Override
                     public void run() {
                         try
                         {
-                            new HttpDownloader().main(params);
+                            HttpDownloader.dl(params);
                             readFileData(filePath);
+                            progressDialog.dismiss();
+
+                            Intent intent = new Intent(LoginActivity.this,HomeActivity.class);
+                            LoginActivity.this.startActivity(intent);
+                            LoginActivity.this.finish();
                         }
                         catch (FileNotFoundException e)
                         {
                             e.printStackTrace();
                         }
                     }
-                });
+                }).start();
             }
-
-            Intent intent = new Intent(LoginActivity.this,HomeActivity.class);
-            LoginActivity.this.startActivity(intent);
-            LoginActivity.this.finish();
         }
 
         final EditText ETUO = findViewById(R.id.UO); // EditTextUO
@@ -95,6 +120,7 @@ public class LoginActivity extends AppCompatActivity {
                 String uo = ETUO.getText().toString();
                 if(!uo.isEmpty())
                 { //correct
+
                     if(remcb.isChecked())
                     {
                         SharedPreferences settings = PreferenceManager.getDefaultSharedPreferences(getBaseContext());
@@ -115,25 +141,52 @@ public class LoginActivity extends AppCompatActivity {
 
                         if(isNetworkAvailable())
                         {
+                            progressDialog = new ProgressDialog(LoginActivity.this);
+                            progressDialog.setMessage(progMessage); // Setting Message
+                            progressDialog.setTitle(progTitle); // Setting Title
+                            progressDialog.setProgressStyle(ProgressDialog.STYLE_SPINNER); // Progress Dialog Style Spinner
+                            progressDialog.show(); // Display Progress Dialog
+                            progressDialog.setCancelable(false);
+
                             new Thread(new Runnable() {
                                 @Override
                                 public void run() {
                                     try
                                     {
-                                        new HttpDownloader().main(params);
+                                        HttpDownloader.dl(params);
                                         readFileData(filePath);
+                                        progressDialog.dismiss();
                                     }
                                     catch (FileNotFoundException e)
                                     {
                                         e.printStackTrace();
                                     }
                                 }
-                            });
+                            }).start();
+
+                            /*
+                            try
+                            {
+                                HttpDownloader.dl(params);
+                                readFileData(filePath);
+                                progressDialog.dismiss();
+                            }
+                            catch (FileNotFoundException e)
+                            {
+                                e.printStackTrace();
+                            }
+                            progressDialog.dismiss();
+                            */
+
                         }
                         else
                         {
                             Toast.makeText(LoginActivity.this, "NETWORK UNAVAILABLE", Toast.LENGTH_LONG).show();
                         }
+
+                        Intent intent = new Intent(LoginActivity.this,HomeActivity.class);
+                        LoginActivity.this.startActivity(intent);
+                        LoginActivity.this.finish();
                     }
                     else
                     {

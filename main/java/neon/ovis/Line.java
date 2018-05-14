@@ -1,5 +1,9 @@
 package neon.ovis;
 
+import android.graphics.Color;
+
+import java.util.Random;
+
 public class Line
 {
     private String id;
@@ -99,5 +103,13 @@ public class Line
 
     public void setLocation(String location) {
         this.location = location;
+    }
+
+    public int dayOfMonth()
+    {
+        String date = getStartDate().trim();
+        String[] val = date.split("/");
+        int day = Integer.parseInt(val[0]);
+        return  day;
     }
 }
