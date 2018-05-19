@@ -19,29 +19,13 @@ import java.util.ArrayList;
 public class DayActivity extends AppCompatActivity {
 
     private ListView listView;
-    private String datePicked;
-    private TDB db;
-    private Bundle bundle;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_day);
         listView = findViewById(R.id.dayTimetablelv);
-        /*
-        if(savedInstanceState==null)
-        {
-            bundle = getIntent().getExtras();
-            datePicked = (String) bundle.getString("Date");
-        }
-        else
-        {
-            datePicked = (String) savedInstanceState.getSerializable("Date");
-        }
-        */
-        datePicked = " 09/04/2018";
-        db = new TDB(this);
-        ArrayList<Line> lines = db.getClassesOf(datePicked);
+        ArrayList<Line> lines = getIntent().getParcelableArrayListExtra("Lines");
         DayActivity.DayAdapter adapter = new DayActivity.DayAdapter(this, R.layout.activity_day_timetable_item, lines);
         listView.setAdapter(adapter);
     }

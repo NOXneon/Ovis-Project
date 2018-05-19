@@ -1,13 +1,17 @@
 package neon.ovis;
 
 import android.Manifest;
+import android.app.Activity;
 import android.app.ProgressDialog;
 import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
+import android.content.res.Configuration;
+import android.database.sqlite.SQLiteDatabase;
 import android.net.ConnectivityManager;
 import android.net.NetworkInfo;
+import android.os.AsyncTask;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
@@ -27,6 +31,8 @@ import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.IOException;
+import java.io.Serializable;
+import java.util.ArrayList;
 import java.util.regex.Pattern;
 
 public class LoginActivity extends AppCompatActivity {
@@ -37,6 +43,10 @@ public class LoginActivity extends AppCompatActivity {
     ProgressDialog progressDialog;
     private String progTitle = "Refresh";
     private String progMessage = "We are refreshing your timetable";
+    private ArrayList<Line> lines;
+    private boolean processed = false;
+    private Thread t;
+    private SQLiteDatabase database;
 
     @Override
     protected void onCreate(Bundle savedInstanceState)
@@ -45,7 +55,9 @@ public class LoginActivity extends AppCompatActivity {
         setContentView(R.layout.activity_login);
         getSupportActionBar().hide();
 
+        lines = new ArrayList<>();
         db = new TDB(this);
+        db.clear();
 
         SharedPreferences settings = PreferenceManager.getDefaultSharedPreferences(getBaseContext());
         String SUO = settings.getString("UO",""); //Stored UO
@@ -55,54 +67,43 @@ public class LoginActivity extends AppCompatActivity {
 
         if(!SUO.isEmpty())
         {
-            progressDialog = new ProgressDialog(this);
-            progressDialog.setMessage(progMessage); // Setting Message
-            progressDialog.setTitle(progTitle); // Setting Title
-            progressDialog.setProgressStyle(ProgressDialog.STYLE_SPINNER); // Progress Dialog Style Spinner
-            progressDialog.show(); // Display Progress Dialog
-            progressDialog.setCancelable(false);
-
-            String fileURL = "http://gobierno.euitio.uniovi.es/grado/gd/?y=17-18&t=S2&uo="+SUO;
-            String saveDir = "/sdcard/Download";
-            final String[] params = new String[2];
-            params[0] = fileURL;
-            params[1] = saveDir;
-
             if(isNetworkAvailable())
             {
-                /*
-                try
+                if(!processed)
                 {
-                    HttpDownloader.dl(params);
-                    readFileData(filePath);
-                    progressDialog.dismiss();
-                }
-                catch (FileNotFoundException e)
-                {
-                    e.printStackTrace();
-                }
-                progressDialog.dismiss();
-                */
+                    final String fileURL = "http://gobierno.euitio.uniovi.es/grado/gd/?y=17-18&t=S2&uo="+SUO;
+                    String saveDir = "/sdcard/Download";
+                    final String[] params = new String[2];
+                    params[0] = fileURL;
+                    params[1] = saveDir;
 
-                new Thread(new Runnable() {
-                    @Override
-                    public void run() {
-                        try
-                        {
-                            HttpDownloader.dl(params);
-                            readFileData(filePath);
-                            progressDialog.dismiss();
+                    progressDialog = new ProgressDialog(LoginActivity.this);
+                    progressDialog.setMessage(progMessage); // Setting Message
+                    progressDialog.setTitle(progTitle); // Setting Title
+                    progressDialog.setProgressStyle(ProgressDialog.STYLE_SPINNER); // Progress Dialog Style Spinner
+                    progressDialog.setCancelable(false);
+                    progressDialog.show();
 
-                            Intent intent = new Intent(LoginActivity.this,HomeActivity.class);
-                            LoginActivity.this.startActivity(intent);
-                            LoginActivity.this.finish();
-                        }
-                        catch (FileNotFoundException e)
-                        {
-                            e.printStackTrace();
-                        }
+                    try
+                    {
+                        HttpDownloader.dl(params);
+                        copyFileData(filePath);
+                    } catch (FileNotFoundException e)
+                    {
+                        e.printStackTrace();
                     }
-                }).start();
+
+                    Intent intent = new Intent(LoginActivity.this,HomeActivity.class);
+                    Bundle bundle = new Bundle();
+                    bundle.putSerializable("Lines", lines);
+                    intent.putExtras(bundle);
+                    LoginActivity.this.startActivity(intent);
+                    LoginActivity.this.finish();
+                }
+            }
+            else
+            {
+                Toast.makeText(LoginActivity.this, "NETWORK UNAVAILABLE", Toast.LENGTH_LONG).show();
             }
         }
 
@@ -132,61 +133,44 @@ public class LoginActivity extends AppCompatActivity {
 
                     if(isStoragePermissionGranted())
                     {
-                        // EX : UO257514
-                        String fileURL = "http://gobierno.euitio.uniovi.es/grado/gd/?y=17-18&t=S2&uo="+uo;
-                        String saveDir = "/sdcard/Download";
-                        final String[] params = new String[2];
-                        params[0] = fileURL;
-                        params[1] = saveDir;
-
                         if(isNetworkAvailable())
                         {
-                            progressDialog = new ProgressDialog(LoginActivity.this);
-                            progressDialog.setMessage(progMessage); // Setting Message
-                            progressDialog.setTitle(progTitle); // Setting Title
-                            progressDialog.setProgressStyle(ProgressDialog.STYLE_SPINNER); // Progress Dialog Style Spinner
-                            progressDialog.show(); // Display Progress Dialog
-                            progressDialog.setCancelable(false);
+                            if(!processed)
+                            {
+                                String fileURL = "http://gobierno.euitio.uniovi.es/grado/gd/?y=17-18&t=S2&uo="+uo;
+                                String saveDir = "/sdcard/Download";
+                                final String[] params = new String[2];
+                                params[0] = fileURL;
+                                params[1] = saveDir;
 
-                            new Thread(new Runnable() {
-                                @Override
-                                public void run() {
-                                    try
-                                    {
-                                        HttpDownloader.dl(params);
-                                        readFileData(filePath);
-                                        progressDialog.dismiss();
-                                    }
-                                    catch (FileNotFoundException e)
-                                    {
-                                        e.printStackTrace();
-                                    }
+                                progressDialog = new ProgressDialog(LoginActivity.this);
+                                progressDialog.setMessage(progMessage); // Setting Message
+                                progressDialog.setTitle(progTitle); // Setting Title
+                                progressDialog.setProgressStyle(ProgressDialog.STYLE_SPINNER); // Progress Dialog Style Spinner
+                                progressDialog.setCancelable(false);
+                                progressDialog.show();
+
+                                try
+                                {
+                                    HttpDownloader.dl(params);
+                                    copyFileData(filePath);
+                                } catch (FileNotFoundException e)
+                                {
+                                    e.printStackTrace();
                                 }
-                            }).start();
 
-                            /*
-                            try
-                            {
-                                HttpDownloader.dl(params);
-                                readFileData(filePath);
-                                progressDialog.dismiss();
+                                Intent intent = new Intent(LoginActivity.this,HomeActivity.class);
+                                Bundle bundle = new Bundle();
+                                bundle.putSerializable("Lines", lines);
+                                intent.putExtras(bundle);
+                                LoginActivity.this.startActivity(intent);
+                                LoginActivity.this.finish();
                             }
-                            catch (FileNotFoundException e)
-                            {
-                                e.printStackTrace();
-                            }
-                            progressDialog.dismiss();
-                            */
-
                         }
                         else
                         {
                             Toast.makeText(LoginActivity.this, "NETWORK UNAVAILABLE", Toast.LENGTH_LONG).show();
                         }
-
-                        Intent intent = new Intent(LoginActivity.this,HomeActivity.class);
-                        LoginActivity.this.startActivity(intent);
-                        LoginActivity.this.finish();
                     }
                     else
                     {
@@ -199,6 +183,20 @@ public class LoginActivity extends AppCompatActivity {
                 }
             }
         });
+    }
+
+    @Override
+    protected void onPause() {
+        if(progressDialog != null && progressDialog.isShowing())
+            progressDialog.dismiss();
+        super.onPause();
+    }
+
+    @Override
+    protected void onDestroy() {
+        if(progressDialog != null && progressDialog.isShowing())
+            progressDialog.dismiss();
+        super.onDestroy();
     }
 
     public  boolean isStoragePermissionGranted()
@@ -220,7 +218,7 @@ public class LoginActivity extends AppCompatActivity {
         }
     }
 
-    void readFileData(String path) throws FileNotFoundException
+    void insertFileData(String path) throws FileNotFoundException
     {
         Line l;
         String[] data;
@@ -231,30 +229,33 @@ public class LoginActivity extends AppCompatActivity {
             BufferedReader br = new BufferedReader(new FileReader(file));
             try
             {
-                db.clear();
                 String csvLine;
                 while ((csvLine = br.readLine()) != null)
                 {
+                    if(csvLine.isEmpty())
+                        continue;
+
                     data=csvLine.split(",");
                     try
                     {
-                        if(!data[0].equals("Subject"))
+                        if(data[0].trim().equals("Subject") || data[0] == null || data[0].trim() == "")
+                            continue;
+
+                        String[] st = data[2].split(Pattern.quote("."));
+                        String sh = st[0];
+                        sh = sh.trim();
+                        if(Integer.parseInt(sh)<=9)
                         {
-                            String[] st = data[2].split(Pattern.quote("."));
-                            String sh = st[0];
-                            sh = sh.trim();
-                            if(Integer.parseInt(sh)<=9)
-                            {
-                                data[2] = "0"+data[2].trim();
-                            }
-                            String[] et = data[4].split(Pattern.quote("."));
-                            String eh = et[0];
-                            eh = eh.trim();
-                            if(Integer.parseInt(eh)<=9)
-                            {
-                                data[4] = "0"+data[4].trim();
-                            }
+                            data[2] = "0"+data[2].trim();
                         }
+                        String[] et = data[4].split(Pattern.quote("."));
+                        String eh = et[0];
+                        eh = eh.trim();
+                        if(Integer.parseInt(eh)<=9)
+                        {
+                            data[4] = "0"+data[4].trim();
+                        }
+
                         data[2] = data[2].trim();
                         data[4] = data[4].trim();
 
@@ -264,6 +265,68 @@ public class LoginActivity extends AppCompatActivity {
                     catch (Exception e)
                     {
                         Log.e("Problem",e.toString());
+                    }
+                }
+                db.adjust();
+            }
+            catch (IOException ex)
+            {
+                throw new RuntimeException("CORRUPTED TIMETABLE"+ex);
+            }
+        }
+        else
+        {
+            throw new FileNotFoundException();
+        }
+    }
+
+    void copyFileData(String path) throws FileNotFoundException
+    {
+        Line l;
+        String[] data;
+        File file = new File(path);
+
+        if (file.exists())
+        {
+            BufferedReader br = new BufferedReader(new FileReader(file));
+            try
+            {
+                String csvLine;
+                while ((csvLine = br.readLine()) != null)
+                {
+                    if(csvLine.isEmpty())
+                        continue;
+
+                    data=csvLine.split(",");
+                    try
+                    {
+                        if(data[0].trim().equals("Subject") || data[0] == null || data[0].trim() == "")
+                            continue;
+
+                        String[] st = data[2].split(Pattern.quote("."));
+                        String sh = st[0];
+                        sh = sh.trim();
+                        if(Integer.parseInt(sh)<=9)
+                        {
+                            data[2] = "0"+data[2].trim();
+                        }
+                        String[] et = data[4].split(Pattern.quote("."));
+                        String eh = et[0];
+                        eh = eh.trim();
+                        if(Integer.parseInt(eh)<=9)
+                        {
+                            data[4] = "0"+data[4].trim();
+                        }
+
+                        data[2] = data[2].trim();
+                        data[4] = data[4].trim();
+
+                        l = new Line(data[0], data[1], data[2], data[3], data[4], data[5], data[6]);
+                        lines.add(l);
+                    }
+                    catch (Exception e)
+                    {
+                        Log.e("Problem : ",e.toString());
                     }
                 }
                 db.adjust();
@@ -285,5 +348,11 @@ public class LoginActivity extends AppCompatActivity {
                 = (ConnectivityManager) getSystemService(Context.CONNECTIVITY_SERVICE);
         NetworkInfo activeNetworkInfo = connectivityManager.getActiveNetworkInfo();
         return activeNetworkInfo != null && activeNetworkInfo.isConnected();
+    }
+
+    @Override
+    public void onConfigurationChanged(Configuration newConfig) {
+        processed = true;
+        super.onConfigurationChanged(newConfig);
     }
 }

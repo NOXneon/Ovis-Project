@@ -1,11 +1,13 @@
 package neon.ovis;
 
 import android.graphics.Color;
+import android.os.Parcel;
+import android.os.Parcelable;
 
 import java.util.Random;
 import java.util.regex.Pattern;
 
-public class Line
+public class Line implements Parcelable
 {
     private String id;
     private String subject;
@@ -41,6 +43,29 @@ public class Line
         this.description = description;
         this.location = location;
     }
+
+    protected Line(Parcel in) {
+        id = in.readString();
+        subject = in.readString();
+        startDate = in.readString();
+        startTime = in.readString();
+        endDate = in.readString();
+        endTime = in.readString();
+        description = in.readString();
+        location = in.readString();
+    }
+
+    public static final Creator<Line> CREATOR = new Creator<Line>() {
+        @Override
+        public Line createFromParcel(Parcel in) {
+            return new Line(in);
+        }
+
+        @Override
+        public Line[] newArray(int size) {
+            return new Line[size];
+        }
+    };
 
     public String getId() {
         return id;
@@ -148,7 +173,7 @@ public class Line
 
     public int EndDayOfMonth()
     {
-        String date = getStartDate().trim();
+        String date = getEndDate().trim();
         String[] val = date.split(Pattern.quote("/"));
         int day = Integer.parseInt(val[0]);
         return  day;
@@ -164,7 +189,7 @@ public class Line
 
     public int getEndYear()
     {
-        String date = getStartDate().trim();
+        String date = getEndDate().trim();
         String[] val = date.split(Pattern.quote("/"));
         int year = Integer.parseInt(val[2]);
         return  year;
@@ -172,7 +197,7 @@ public class Line
 
     public int getEndHour()
     {
-        String date = getStartTime().trim();
+        String date = getEndTime().trim();
         String[] val = date.split(Pattern.quote("."));
         int hour = Integer.parseInt(val[0]);
         return  hour;
@@ -180,9 +205,26 @@ public class Line
 
     public int getEndMinute()
     {
-        String date = getStartTime().trim();
+        String date = getEndTime().trim();
         String[] val = date.split(Pattern.quote("."));
         int minute = Integer.parseInt(val[1]);
         return  minute;
+    }
+
+    @Override
+    public int describeContents() {
+        return 0;
+    }
+
+    @Override
+    public void writeToParcel(Parcel dest, int flags) {
+        dest.writeString(id);
+        dest.writeString(subject);
+        dest.writeString(startDate);
+        dest.writeString(startTime);
+        dest.writeString(endDate);
+        dest.writeString(endTime);
+        dest.writeString(description);
+        dest.writeString(location);
     }
 }

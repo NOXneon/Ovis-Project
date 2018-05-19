@@ -2,8 +2,7 @@
 <resources>
     <color name="colorPrimary">#3F51B5</color>
     <color name="colorPrimaryDark">#303F9F</color>
-    <color name="colorAccent">#FF4081</color>
-
+    <color name="colorAccent">#40acff</color>
     <color name="event_color_01">#59dbe0</color>
     <color name="event_color_02">#f57f68</color>
     <color name="event_color_03">#87d288</color>
@@ -11,17 +10,19 @@
     <color name="toolbar">#efefef</color>
     <color name="toolbar_text">#8f000000</color>
     <color name="accent">#2789e4</color>
+    <color name="cv">#eeeeee</color>
+    <color name="butcv">#b0bec5</color>
 
     <string-array name="colors" translatable="false">
         <item>#99cc00</item>
-        <item>#33b5e5</item>
+        <item>#80D8FF</item>
         <item>#0099cc</item>
         <item>#547bca</item>
         <item>#aa66cc</item>
         <item>#9933cc</item>
         <item>#669900</item>
         <item>#aeb857</item>
-        <item>#cc0000</item>
+        <item>#D50000</item>
         <item>#df5948</item>
         <item>#ff4444</item>
         <item>#ae6b23</item>
@@ -29,6 +30,6 @@
         <item>#e5ae4f</item>
         <item>#ffbb33</item>
         <item>#cccccc</item>
-        <item>#888888</item>
+        <item>#90A4AE</item>
     </string-array>
 </resources>

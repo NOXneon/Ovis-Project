@@ -1,13 +1,18 @@
 package neon.ovis;
 
+import android.app.Activity;
 import android.app.AlertDialog;
 import android.app.DatePickerDialog;
 import android.app.ProgressDialog;
 import android.content.Context;
+import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.SharedPreferences;
+import android.content.res.Configuration;
+import android.graphics.Color;
 import android.net.ConnectivityManager;
 import android.net.NetworkInfo;
+import android.os.AsyncTask;
 import android.os.Bundle;
 import android.preference.PreferenceManager;
 import android.support.annotation.NonNull;
@@ -23,8 +28,11 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.widget.ArrayAdapter;
 import android.widget.DatePicker;
+import android.widget.ImageButton;
+import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.ListView;
+import android.widget.ScrollView;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -33,40 +41,46 @@ import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.IOException;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.regex.Pattern;
 
-public class HomeActivity extends AppCompatActivity {
-
-    private LinearLayout dashfunc;
+public class HomeActivity extends AppCompatActivity
+{
     private LinearLayout dayTimetable;
+    private ScrollView scrv;
     private ListView listView;
     private static String filePath = "/sdcard/Download/plan.csv";
     private TDB db;
     ProgressDialog progressDialog;
     private String progTitle = "Refresh";
     private String progMessage = "We are refreshing your timetable";
+    private ArrayList<Line> lines;
+    private boolean alarmON;
+    private boolean processed = false;
+    private InsertTask insertTask;
 
     private BottomNavigationView.OnNavigationItemSelectedListener mOnNavigationItemSelectedListener
             = new BottomNavigationView.OnNavigationItemSelectedListener() {
 
         @Override
         public boolean onNavigationItemSelected(@NonNull MenuItem item) {
+            ScrollView scrv = findViewById(R.id.scrv);
             switch (item.getItemId()) {
                 case R.id.navigation_home:
                     setTitle(R.string.title_home);
-                    dashfunc.setVisibility(View.GONE);
+                    scrv.setVisibility(View.GONE);
                     dayTimetable.setVisibility(View.VISIBLE);
                     return true;
                 case R.id.navigation_dashboard:
                     setTitle(R.string.title_dashboard);
-                    dashfunc.setVisibility(View.VISIBLE);
+                    scrv.setVisibility(View.VISIBLE);
                     dayTimetable.setVisibility(View.GONE);
                     return true;
                 case R.id.navigation_notifications:
                     setTitle(R.string.title_notifications);
-                    dashfunc.setVisibility(View.GONE);
+                    scrv.setVisibility(View.GONE);
                     dayTimetable.setVisibility(View.GONE);
                     return true;
             }
@@ -79,38 +93,150 @@ public class HomeActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_home);
         db = new TDB(this);
-        dashfunc = findViewById(R.id.dashfunc);
+        lines = getIntent().getParcelableArrayListExtra("Lines");
         dayTimetable = findViewById(R.id.dayTimetable);
         dayTimetable.setVisibility(View.VISIBLE);
         listView = findViewById(R.id.dayTimetablelv);
         BottomNavigationView navigation = findViewById(R.id.navigation);
         navigation.setOnNavigationItemSelectedListener(mOnNavigationItemSelectedListener);
 
+        insertTask = new InsertTask(this);
+        insertTask.execute();
+
         CardView myWeek = findViewById(R.id.myweek);
         myWeek.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
                 Intent intent = new Intent(HomeActivity.this,BasicActivity.class);
+                Bundle bundle = new Bundle();
+                bundle.putSerializable("Lines",lines);
+                intent.putExtras(bundle);
                 HomeActivity.this.startActivity(intent);
             }
         });
-        /*
+
+
+        /* -------------- TODAY DATE ----------- */
         Time today = new Time(Time.getCurrentTimezone());
         today.setToNow();
-        String date = " "+today.monthDay+"/"+today.month+"/"+today.year;
-        */
+        final String[] date = {" "+today.monthDay+"/"+(today.month+1)+"/"+today.year};
 
-        String date = " 09/04/2018";
-        ArrayList<Line> lines = db.getClassesOf(date);
-        //ArrayList<Line> test = db.recup_lines();
-        DayAdapter adapter = new DayAdapter(this, R.layout.activity_home_timetable_item, lines);
+
+        //final String[] date = {" 09/04/2018"};
+
+        ImageButton prev = findViewById(R.id.prevButton);
+        prev.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+
+                String[] val = date[0].trim().split(Pattern.quote("/"));
+                int d = Integer.valueOf(val[0]);
+                int m = Integer.valueOf(val[1]);
+                int y = Integer.valueOf(val[2]);
+                Calendar fd = Calendar.getInstance();
+                fd.set(Calendar.DAY_OF_MONTH, d);
+                fd.set(Calendar.MONTH, m-1);
+                fd.set(Calendar.YEAR, y);
+                fd.add(Calendar.DATE, -1);
+                d = fd.get(Calendar.DAY_OF_MONTH);
+                m = fd.get(Calendar.MONTH)+1;
+                y = fd.get(Calendar.YEAR);
+                String sd = " " + String.format("%02d",d) + "/" + String.format("%02d",m) + "/" + y;
+
+                TextView title = findViewById(R.id.titleHome);
+                SimpleDateFormat format = new SimpleDateFormat("dd/MM/YYYY");
+                String currentDate = format.format(Calendar.getInstance().getTime());
+
+                date[0] = sd;
+
+                if(sd.trim().equals(currentDate.trim()))
+                {
+                    sd = "TODAY";
+                }
+                title.setText(sd.trim());
+
+                ArrayList<Line> classes = new ArrayList<>();
+                Line l;
+                for (int i=0; i<lines.size(); i++)
+                {
+                    l = lines.get(i);
+                    if(l.getStartDate().trim().equals(date[0].trim()))
+                    {
+                        classes.add(l);
+                    }
+                }
+
+                DayAdapter adapter = new DayAdapter(HomeActivity.this, R.layout.activity_home_timetable_item, classes);
+                listView.setAdapter(adapter);
+            }
+        });
+
+        final ImageButton next = findViewById(R.id.nextButton);
+        next.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+
+                String[] val = date[0].trim().split(Pattern.quote("/"));
+                int d = Integer.valueOf(val[0]);
+                int m = Integer.valueOf(val[1]);
+                int y = Integer.valueOf(val[2]);
+                Calendar fd = Calendar.getInstance();
+                fd.set(Calendar.DAY_OF_MONTH, d);
+                fd.set(Calendar.MONTH, m-1);
+                fd.set(Calendar.YEAR, y);
+                fd.add(Calendar.DATE, 1);
+                d = fd.get(Calendar.DAY_OF_MONTH);
+                m = fd.get(Calendar.MONTH)+1;
+                y = fd.get(Calendar.YEAR);
+                String sd = " " + String.format("%02d",d) + "/" + String.format("%02d",m) + "/" + y;
+
+                TextView title = findViewById(R.id.titleHome);
+                SimpleDateFormat format = new SimpleDateFormat("dd/MM/YYYY");
+                String currentDate = format.format(Calendar.getInstance().getTime());
+
+                date[0] = sd;
+
+                if(sd.trim().equals(currentDate.trim()))
+                {
+                    sd = "TODAY";
+                }
+                title.setText(sd.trim());
+
+                ArrayList<Line> classes = new ArrayList<>();
+                Line l;
+                for (int i=0; i<lines.size(); i++)
+                {
+                    l = lines.get(i);
+                    if(l.getStartDate().trim().equals(date[0].trim()))
+                    {
+                        classes.add(l);
+                    }
+                }
+
+                DayAdapter adapter = new DayAdapter(HomeActivity.this, R.layout.activity_home_timetable_item, classes);
+                listView.setAdapter(adapter);
+
+            }
+        });
+
+        ArrayList<Line> classes = new ArrayList<>();
+        Line l;
+        for (int i=0; i<lines.size(); i++)
+        {
+            l = lines.get(i);
+            if(l.getStartDate().trim().equals(date[0].trim()))
+            {
+                classes.add(l);
+            }
+        }
+
+        DayAdapter adapter = new DayAdapter(this, R.layout.activity_home_timetable_item, classes);
         listView.setAdapter(adapter);
 
         CardView signout = findViewById(R.id.disconnect);
         signout.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                // Clear preferences
                 PreferenceManager.getDefaultSharedPreferences(getBaseContext()).edit().clear().apply();
                 HomeActivity.this.finish();
                 Intent intent = new Intent(HomeActivity.this,LoginActivity.class);
@@ -119,12 +245,73 @@ public class HomeActivity extends AppCompatActivity {
             }
         });
 
+        final CardView alarm = findViewById(R.id.alarm);
+        alarm.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                final ImageView[] child = new ImageView[1];
+                final View[] line = new View[1];
+
+                if(alarmON)
+                {
+                    new AlertDialog.Builder(HomeActivity.this)
+                            .setIcon(android.R.drawable.ic_lock_idle_alarm)
+                            .setTitle("Alarms OFF ")
+                            .setMessage("Are you sure you want to set off the alarms ?")
+                            .setPositiveButton("Yes", new DialogInterface.OnClickListener()
+                            {
+                                @Override
+                                public void onClick(DialogInterface dialog, int which) {
+                                    alarmON = !alarmON;
+
+                                    child[0] = (ImageView) findViewById(R.id.alarmIcon);
+                                    child[0].setBackgroundResource(R.drawable.cerclegris);
+                                    child[0].setImageResource(R.drawable.ic_alarm_off);
+                                    line[0] = findViewById(R.id.alarmLine);
+                                    String[] colors = getResources().getStringArray(R.array.colors);
+                                    int color = Color.parseColor(colors[16]);
+                                    line[0].setBackgroundColor(color);
+                                }
+
+                            })
+                            .setNegativeButton("No", null)
+                            .show();
+                }
+                else
+                {
+                    new AlertDialog.Builder(HomeActivity.this)
+                            .setIcon(android.R.drawable.ic_lock_idle_alarm)
+                            .setTitle("Alarms ON ")
+                            .setMessage("Are you sure you want to set on the alarms ?")
+                            .setPositiveButton("Yes", new DialogInterface.OnClickListener()
+                            {
+                                @Override
+                                public void onClick(DialogInterface dialog, int which) {
+                                    alarmON = !alarmON;
+
+                                    child[0] = findViewById(R.id.alarmIcon);
+                                    child[0].setBackgroundResource(R.drawable.cerclebleu);
+                                    child[0].setImageResource(R.drawable.ic_alarm);
+                                    line[0] = findViewById(R.id.alarmLine);
+                                    String[] colors = getResources().getStringArray(R.array.colors);
+                                    int color = Color.parseColor(colors[1]);
+                                    line[0].setBackgroundColor(color);
+                                }
+
+                            })
+                            .setNegativeButton("No", null)
+                            .show();
+
+                }
+            }
+        });
+
         CardView searchDate = findViewById(R.id.seekDate);
         searchDate.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                final Calendar myCalendar = Calendar.getInstance();
 
+                final Calendar myCalendar = Calendar.getInstance();
 
                 DatePickerDialog.OnDateSetListener seekDate = new DatePickerDialog.OnDateSetListener() {
 
@@ -134,19 +321,24 @@ public class HomeActivity extends AppCompatActivity {
                         myCalendar.set(Calendar.YEAR, year);
                         myCalendar.set(Calendar.MONTH, monthOfYear);
                         myCalendar.set(Calendar.DAY_OF_MONTH, dayOfMonth);
-                        String date;
+
+                        String date = " "+String.format("%02d",dayOfMonth)+"/"+String.format("%02d",monthOfYear+1)+"/"+year;
+
+                        ArrayList<Line> classes = new ArrayList<>();
+                        Line l;
+                        for (int i=0; i<lines.size(); i++)
+                        {
+                            l = lines.get(i);
+                            if(l.getStartDate().trim().equals(date.trim()))
+                            {
+                                classes.add(l);
+                            }
+                        }
 
                         Intent intent = new Intent(HomeActivity.this,DayActivity.class);
-                        if(dayOfMonth<=9)
-                        {
-                            date = " 0"+dayOfMonth+"/"+(monthOfYear+1)+"/"+year;
-                        }
-                        else
-                        {
-                            date = " "+dayOfMonth+"/"+(monthOfYear+1)+"/"+year;
-                        }
-
-                        intent.putExtra("Date", date);
+                        Bundle bundle = new Bundle();
+                        bundle.putSerializable("Lines", classes);
+                        intent.putExtras(bundle);
                         HomeActivity.this.startActivity(intent);
                     }
                 };
@@ -161,35 +353,43 @@ public class HomeActivity extends AppCompatActivity {
         refresh.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                progressDialog = new ProgressDialog(HomeActivity.this);
-                progressDialog.setMessage(progMessage); // Setting Message
-                progressDialog.setTitle(progTitle); // Setting Title
-                progressDialog.setProgressStyle(ProgressDialog.STYLE_SPINNER); // Progress Dialog Style Spinner
-                progressDialog.show(); // Display Progress Dialog
-                progressDialog.setCancelable(false);
-                SharedPreferences settings = PreferenceManager.getDefaultSharedPreferences(getBaseContext());
-                String SUO = settings.getString("UO",""); //Stored UO
-                String fileURL = "http://gobierno.euitio.uniovi.es/grado/gd/?y=17-18&t=S2&uo="+SUO;
-                String saveDir = "/sdcard/Download";
-                final String[] params = new String[2];
-                params[0] = fileURL;
-                params[1] = saveDir;
+                if(isNetworkAvailable())
+                {
+                    progressDialog = new ProgressDialog(HomeActivity.this);
+                    progressDialog.setMessage(progMessage); // Setting Message
+                    progressDialog.setTitle(progTitle); // Setting Title
+                    progressDialog.setProgressStyle(ProgressDialog.STYLE_SPINNER); // Progress Dialog Style Spinner
+                    progressDialog.show(); // Display Progress Dialog
+                    progressDialog.setCancelable(false);
+                    progressDialog.show();
+                    SharedPreferences settings = PreferenceManager.getDefaultSharedPreferences(getBaseContext());
+                    String SUO = settings.getString("UO",""); //Stored UO
+                    String fileURL = "http://gobierno.euitio.uniovi.es/grado/gd/?y=17-18&t=S2&uo="+SUO;
+                    String saveDir = "/sdcard/Download";
+                    final String[] params = new String[2];
+                    params[0] = fileURL;
+                    params[1] = saveDir;
 
-                new Thread(new Runnable() {
-                    @Override
-                    public void run() {
-                        try
-                        {
-                            HttpDownloader.dl(params);
-                            readFileData(filePath);
-                            progressDialog.dismiss();
+                    new Thread(new Runnable() {
+                        @Override
+                        public void run() {
+                            try
+                            {
+                                HttpDownloader.dl(params);
+                                copyFileData(filePath);
+                                progressDialog.dismiss();
+                            }
+                            catch (FileNotFoundException e)
+                            {
+                                e.printStackTrace();
+                            }
                         }
-                        catch (FileNotFoundException e)
-                        {
-                            e.printStackTrace();
-                        }
-                    }
-                }).start();
+                    }).start();
+                }
+                else
+                {
+                    Toast.makeText(getApplicationContext(),"Network unavailable",Toast.LENGTH_SHORT).show();
+                }
             }
         });
     }
@@ -253,7 +453,7 @@ public class HomeActivity extends AppCompatActivity {
         }
     }
 
-    void readFileData(String path) throws FileNotFoundException
+    void insertFileData(String path) throws FileNotFoundException
     {
         Line l;
         String[] data;
@@ -268,26 +468,30 @@ public class HomeActivity extends AppCompatActivity {
                 String csvLine;
                 while ((csvLine = br.readLine()) != null)
                 {
+                    if(csvLine.isEmpty())
+                        continue;
+
                     data=csvLine.split(",");
                     try
                     {
-                        if(!data[0].equals("Subject"))
+                        if(data[0].trim().equals("Subject") || data[0] == null || data[0].trim() == "")
+                            continue;
+
+                        String[] st = data[2].split(Pattern.quote("."));
+                        String sh = st[0];
+                        sh = sh.trim();
+                        if(Integer.parseInt(sh)<=9)
                         {
-                            String[] st = data[2].split(Pattern.quote("."));
-                            String sh = st[0];
-                            sh = sh.trim();
-                            if(Integer.parseInt(sh)<=9)
-                            {
-                                data[2] = "0"+data[2].trim();
-                            }
-                            String[] et = data[4].split(Pattern.quote("."));
-                            String eh = et[0];
-                            eh = eh.trim();
-                            if(Integer.parseInt(eh)<=9)
-                            {
-                                data[4] = "0"+data[4].trim();
-                            }
+                            data[2] = "0"+data[2].trim();
                         }
+                        String[] et = data[4].split(Pattern.quote("."));
+                        String eh = et[0];
+                        eh = eh.trim();
+                        if(Integer.parseInt(eh)<=9)
+                        {
+                            data[4] = "0"+data[4].trim();
+                        }
+
                         data[2] = data[2].trim();
                         data[4] = data[4].trim();
 
@@ -312,11 +516,112 @@ public class HomeActivity extends AppCompatActivity {
         }
     }
 
+    void copyFileData(String path) throws FileNotFoundException
+    {
+        Line l;
+        String[] data;
+        File file = new File(path);
+
+        if (file.exists())
+        {
+            BufferedReader br = new BufferedReader(new FileReader(file));
+            try
+            {
+                String csvLine;
+                while ((csvLine = br.readLine()) != null)
+                {
+                    if(csvLine.isEmpty())
+                        continue;
+
+                    data=csvLine.split(",");
+                    try
+                    {
+                        if(data[0].trim().equals("Subject") || data[0] == null || data[0].trim() == "")
+                            continue;
+
+                        String[] st = data[2].split(Pattern.quote("."));
+                        String sh = st[0];
+                        sh = sh.trim();
+                        if(Integer.parseInt(sh)<=9)
+                        {
+                            data[2] = "0"+data[2].trim();
+                        }
+                        String[] et = data[4].split(Pattern.quote("."));
+                        String eh = et[0];
+                        eh = eh.trim();
+                        if(Integer.parseInt(eh)<=9)
+                        {
+                            data[4] = "0"+data[4].trim();
+                        }
+
+                        data[2] = data[2].trim();
+                        data[4] = data[4].trim();
+
+                        l = new Line(data[0], data[1], data[2], data[3], data[4], data[5], data[6]);
+                        lines.add(l);
+                    }
+                    catch (Exception e)
+                    {
+                        Log.e("Problem",e.toString());
+                    }
+                }
+                db.adjust();
+            }
+            catch (IOException ex)
+            {
+                throw new RuntimeException("CORRUPTED TIMETABLE"+ex);
+            }
+        }
+        else
+        {
+            Toast.makeText(getApplicationContext(),"TIMETABLE NOT FOUND",Toast.LENGTH_SHORT).show();
+        }
+    }
+
+
     private boolean isNetworkAvailable()
     {
         ConnectivityManager connectivityManager
                 = (ConnectivityManager) getSystemService(Context.CONNECTIVITY_SERVICE);
         NetworkInfo activeNetworkInfo = connectivityManager.getActiveNetworkInfo();
         return activeNetworkInfo != null && activeNetworkInfo.isConnected();
+    }
+
+    @Override
+    public void onConfigurationChanged(Configuration newConfig) {
+        super.onConfigurationChanged(newConfig);
+        processed = true;
+    }
+
+    public class InsertTask extends AsyncTask<String, Void, Boolean> {
+
+        private Context context;
+
+        public InsertTask(Context context) {
+            this.context = context;
+        }
+
+        @Override
+        protected void onPreExecute() {
+            super.onPreExecute();
+            Toast.makeText(HomeActivity.this, "Refreshing database", Toast.LENGTH_LONG).show();
+        }
+
+        @Override
+        protected Boolean doInBackground(String... params) {
+            try {
+                insertFileData(filePath);
+            } catch (FileNotFoundException e) {
+                e.printStackTrace();
+            }
+            return true;
+        }
+
+
+        @Override
+        protected void onPostExecute(Boolean result) {
+            super.onPostExecute(result);
+            Toast.makeText(HomeActivity.this, "Database refreshed", Toast.LENGTH_LONG).show();
+        }
     }
 }
