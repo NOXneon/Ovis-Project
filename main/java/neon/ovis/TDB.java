@@ -77,7 +77,7 @@ public class TDB extends SQLiteOpenHelper
         ArrayList<Line> lines = new ArrayList<>();
         String[] string_line = new String[]{"id","subject", "startDate", "startTime", "endDate", "endTime", "description", "location"};
 
-        Cursor cursorResults = db.query(true, TABLE_tb, string_line, "startDate='"+date+"'", null, null, null, "startTime", null, null);
+        Cursor cursorResults = db.query(false, TABLE_tb, string_line, "startDate='"+date+"'", null, null, null, "startTime", null, null);
 
         if( null!= cursorResults) {
             if (cursorResults.moveToFirst()) {
@@ -92,34 +92,6 @@ public class TDB extends SQLiteOpenHelper
                                         cursorResults.getString(6),
                                         cursorResults.getString(7)
                                      );
-                    lines.add(l);
-                } while (cursorResults.moveToNext());
-            }
-        }
-        cursorResults.close();
-        return lines;
-    }
-
-    public ArrayList<Line> getClassesOf(String y, String m)
-    {
-        ArrayList<Line> lines = new ArrayList<>();
-        String[] string_line = new String[]{"id","subject", "startDate", "startTime", "endDate", "endTime", "description", "location"};
-
-        Cursor cursorResults = db.query(true, TABLE_tb, string_line, "startDate='%/"+m+"/"+y+"'", null, null, null, "startTime", null, null);
-
-        if( null!= cursorResults) {
-            if (cursorResults.moveToFirst()) {
-                do {
-                    Line l = new Line(
-                            cursorResults.getString(0),
-                            cursorResults.getString(1),
-                            cursorResults.getString(2),
-                            cursorResults.getString(3),
-                            cursorResults.getString(4),
-                            cursorResults.getString(5),
-                            cursorResults.getString(6),
-                            cursorResults.getString(7)
-                    );
                     lines.add(l);
                 } while (cursorResults.moveToNext());
             }

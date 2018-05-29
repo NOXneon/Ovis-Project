@@ -1,8 +1,10 @@
 package neon.ovis;
 
-import android.app.Activity;
+import android.app.AlarmManager;
 import android.app.AlertDialog;
 import android.app.DatePickerDialog;
+import android.app.NotificationManager;
+import android.app.PendingIntent;
 import android.app.ProgressDialog;
 import android.content.Context;
 import android.content.DialogInterface;
@@ -14,6 +16,7 @@ import android.net.ConnectivityManager;
 import android.net.NetworkInfo;
 import android.os.AsyncTask;
 import android.os.Bundle;
+import android.os.Handler;
 import android.preference.PreferenceManager;
 import android.support.annotation.NonNull;
 import android.support.annotation.Nullable;
@@ -41,15 +44,23 @@ import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.IOException;
+import java.net.HttpURLConnection;
+import java.net.MalformedURLException;
+import java.net.URL;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Calendar;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.Date;
+import java.util.concurrent.TimeUnit;
 import java.util.regex.Pattern;
 
 public class HomeActivity extends AppCompatActivity
 {
     private LinearLayout dayTimetable;
     private ScrollView scrv;
+    private String TAG = "";
     private ListView listView;
     private static String filePath = "/sdcard/Download/plan.csv";
     private TDB db;
@@ -57,9 +68,17 @@ public class HomeActivity extends AppCompatActivity
     private String progTitle = "Refresh";
     private String progMessage = "We are refreshing your timetable";
     private ArrayList<Line> lines;
+    private ArrayList<Line> classes;
     private boolean alarmON;
     private boolean processed = false;
     private InsertTask insertTask;
+    private long delay = TimeUnit.DAYS.toMillis(3);
+    //private long delay = TimeUnit.MINUTES.toMillis(3);
+    private int cpt = 0;
+    private Handler handler;
+    private String id;
+    private NotificationManager mNotificationManager;
+    private static final int NOTIFICATION_ID = 0;
 
     private BottomNavigationView.OnNavigationItemSelectedListener mOnNavigationItemSelectedListener
             = new BottomNavigationView.OnNavigationItemSelectedListener() {
@@ -100,8 +119,18 @@ public class HomeActivity extends AppCompatActivity
         BottomNavigationView navigation = findViewById(R.id.navigation);
         navigation.setOnNavigationItemSelectedListener(mOnNavigationItemSelectedListener);
 
+        mNotificationManager = (NotificationManager) getSystemService(NOTIFICATION_SERVICE);
+
+        SharedPreferences settings = PreferenceManager.getDefaultSharedPreferences(getBaseContext());
+        id = settings.getString("UO",""); //Stored UO
+
+        handler = new Handler();
+        startRefreshTask();
+
+        /*
         insertTask = new InsertTask(this);
         insertTask.execute();
+        */
 
         CardView myWeek = findViewById(R.id.myweek);
         myWeek.setOnClickListener(new View.OnClickListener() {
@@ -117,6 +146,7 @@ public class HomeActivity extends AppCompatActivity
 
 
         /* -------------- TODAY DATE ----------- */
+
         Time today = new Time(Time.getCurrentTimezone());
         today.setToNow();
         final String[] date = {" "+today.monthDay+"/"+(today.month+1)+"/"+today.year};
@@ -155,7 +185,7 @@ public class HomeActivity extends AppCompatActivity
                 }
                 title.setText(sd.trim());
 
-                ArrayList<Line> classes = new ArrayList<>();
+                classes = new ArrayList<>();
                 Line l;
                 for (int i=0; i<lines.size(); i++)
                 {
@@ -166,6 +196,8 @@ public class HomeActivity extends AppCompatActivity
                     }
                 }
 
+                Collections.sort(classes, Line.sort);
+
                 DayAdapter adapter = new DayAdapter(HomeActivity.this, R.layout.activity_home_timetable_item, classes);
                 listView.setAdapter(adapter);
             }
@@ -175,7 +207,7 @@ public class HomeActivity extends AppCompatActivity
         next.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-
+                //Toast.makeText(getApplicationContext(),"cpt = "+cpt,Toast.LENGTH_SHORT).show();
                 String[] val = date[0].trim().split(Pattern.quote("/"));
                 int d = Integer.valueOf(val[0]);
                 int m = Integer.valueOf(val[1]);
@@ -202,7 +234,7 @@ public class HomeActivity extends AppCompatActivity
                 }
                 title.setText(sd.trim());
 
-                ArrayList<Line> classes = new ArrayList<>();
+                classes = new ArrayList<>();
                 Line l;
                 for (int i=0; i<lines.size(); i++)
                 {
@@ -213,13 +245,16 @@ public class HomeActivity extends AppCompatActivity
                     }
                 }
 
+                Collections.sort(classes, Line.sort);
+
                 DayAdapter adapter = new DayAdapter(HomeActivity.this, R.layout.activity_home_timetable_item, classes);
                 listView.setAdapter(adapter);
 
             }
         });
 
-        ArrayList<Line> classes = new ArrayList<>();
+
+        classes = new ArrayList<>();
         Line l;
         for (int i=0; i<lines.size(); i++)
         {
@@ -229,6 +264,7 @@ public class HomeActivity extends AppCompatActivity
                 classes.add(l);
             }
         }
+        Collections.sort(classes, Line.sort);
 
         DayAdapter adapter = new DayAdapter(this, R.layout.activity_home_timetable_item, classes);
         listView.setAdapter(adapter);
@@ -271,6 +307,11 @@ public class HomeActivity extends AppCompatActivity
                                     String[] colors = getResources().getStringArray(R.array.colors);
                                     int color = Color.parseColor(colors[16]);
                                     line[0].setBackgroundColor(color);
+
+                                    AlarmManager alarmMgr = (AlarmManager)getSystemService(Context.ALARM_SERVICE);
+                                    Intent intent = new Intent(HomeActivity.this, AlarmReceiver.class);
+                                    PendingIntent pendingIntent = PendingIntent.getBroadcast(HomeActivity.this, 0, intent, PendingIntent.FLAG_CANCEL_CURRENT);
+                                    alarmMgr.cancel(pendingIntent);
                                 }
 
                             })
@@ -296,6 +337,57 @@ public class HomeActivity extends AppCompatActivity
                                     String[] colors = getResources().getStringArray(R.array.colors);
                                     int color = Color.parseColor(colors[1]);
                                     line[0].setBackgroundColor(color);
+
+                                    progressDialog = new ProgressDialog(HomeActivity.this);
+                                    progressDialog.setMessage(progMessage); // Setting Message
+                                    progressDialog.setTitle(progTitle); // Setting Title
+                                    progressDialog.setProgressStyle(ProgressDialog.STYLE_SPINNER); // Progress Dialog Style Spinner
+                                    progressDialog.setCancelable(false);
+                                    progressDialog.show();
+
+                                    AlarmManager alarmMgr = (AlarmManager)getSystemService(Context.ALARM_SERVICE);
+                                    Intent intent = new Intent(HomeActivity.this, AlarmReceiver.class);
+                                    intent.putExtra("Title","Title test");
+                                    intent.putExtra("Content", "Content test");
+                                    PendingIntent pendingIntent = PendingIntent.getBroadcast(HomeActivity.this, 0, intent, PendingIntent.FLAG_UPDATE_CURRENT);
+
+
+                                    Date lineDate = new Date(2018,5,28,4,59);
+                                    Date currentDate = new Date();
+                                    if(lineDate.after(currentDate))
+                                    {
+                                        Calendar cal = Calendar.getInstance();
+
+                                        cal.setTimeInMillis(System.currentTimeMillis());
+                                        cal.clear();
+                                        cal.set(Calendar.YEAR, cal.get(Calendar.YEAR));
+                                        cal.set(Calendar.MONTH, cal.get(Calendar.MONTH));
+                                        cal.set(Calendar.DAY_OF_MONTH, cal.get(Calendar.DAY_OF_MONTH));
+                                        cal.set(Calendar.HOUR_OF_DAY, cal.get(Calendar.HOUR_OF_DAY));
+                                        cal.set(Calendar.MINUTE, cal.get(Calendar.MINUTE));
+                                        cal.add(Calendar.MINUTE, 1);
+                                        //cal.set(2018,4,28,4,59);
+                                        alarmMgr.set(AlarmManager.RTC_WAKEUP, cal.getTimeInMillis(), pendingIntent);
+                                    }
+
+                                    /*
+                                    for(Line l : classes)
+                                    {
+                                        Date lineDate = l.sDate();
+                                        Date currentDate = new Date();
+
+                                        if(lineDate.after(currentDate))
+                                        {
+                                            Calendar cal = Calendar.getInstance();
+
+                                            cal.setTimeInMillis(System.currentTimeMillis());
+                                            cal.clear();
+                                            cal.set(l.getYear(),l.getMonth()-1,l.dayOfMonth(),l.getHour(),l.getMinute());
+                                            alarmMgr.set(AlarmManager.RTC_WAKEUP, cal.getTimeInMillis(), pendingIntent);
+                                        }
+                                    }
+                                    */
+                                    progressDialog.dismiss();
                                 }
 
                             })
@@ -335,6 +427,8 @@ public class HomeActivity extends AppCompatActivity
                             }
                         }
 
+                        Collections.sort(classes, Line.sort);
+
                         Intent intent = new Intent(HomeActivity.this,DayActivity.class);
                         Bundle bundle = new Bundle();
                         bundle.putSerializable("Lines", classes);
@@ -353,43 +447,8 @@ public class HomeActivity extends AppCompatActivity
         refresh.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                if(isNetworkAvailable())
-                {
-                    progressDialog = new ProgressDialog(HomeActivity.this);
-                    progressDialog.setMessage(progMessage); // Setting Message
-                    progressDialog.setTitle(progTitle); // Setting Title
-                    progressDialog.setProgressStyle(ProgressDialog.STYLE_SPINNER); // Progress Dialog Style Spinner
-                    progressDialog.show(); // Display Progress Dialog
-                    progressDialog.setCancelable(false);
-                    progressDialog.show();
-                    SharedPreferences settings = PreferenceManager.getDefaultSharedPreferences(getBaseContext());
-                    String SUO = settings.getString("UO",""); //Stored UO
-                    String fileURL = "http://gobierno.euitio.uniovi.es/grado/gd/?y=17-18&t=S2&uo="+SUO;
-                    String saveDir = "/sdcard/Download";
-                    final String[] params = new String[2];
-                    params[0] = fileURL;
-                    params[1] = saveDir;
-
-                    new Thread(new Runnable() {
-                        @Override
-                        public void run() {
-                            try
-                            {
-                                HttpDownloader.dl(params);
-                                copyFileData(filePath);
-                                progressDialog.dismiss();
-                            }
-                            catch (FileNotFoundException e)
-                            {
-                                e.printStackTrace();
-                            }
-                        }
-                    }).start();
-                }
-                else
-                {
-                    Toast.makeText(getApplicationContext(),"Network unavailable",Toast.LENGTH_SHORT).show();
-                }
+                TestInternet it = new TestInternet();
+                it.execute();
             }
         });
     }
@@ -451,6 +510,12 @@ public class HomeActivity extends AppCompatActivity
             private TextView tvTime;
             private TextView tvLocation;
         }
+    }
+
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        stopRefreshTask();
     }
 
     void insertFileData(String path) throws FileNotFoundException
@@ -578,19 +643,41 @@ public class HomeActivity extends AppCompatActivity
         }
     }
 
-
-    private boolean isNetworkAvailable()
-    {
-        ConnectivityManager connectivityManager
-                = (ConnectivityManager) getSystemService(Context.CONNECTIVITY_SERVICE);
-        NetworkInfo activeNetworkInfo = connectivityManager.getActiveNetworkInfo();
-        return activeNetworkInfo != null && activeNetworkInfo.isConnected();
-    }
-
     @Override
     public void onConfigurationChanged(Configuration newConfig) {
         super.onConfigurationChanged(newConfig);
         processed = true;
+    }
+
+    /*
+    private Boolean isOnline()	{
+        ConnectivityManager cm = (ConnectivityManager)getSystemService(Context.CONNECTIVITY_SERVICE);
+        NetworkInfo ni = cm.getActiveNetworkInfo();
+        if(ni != null && ni.isConnected() && (ni.getType() == ConnectivityManager.TYPE_MOBILE || ni.getType() == ConnectivityManager.TYPE_WIFI))
+            return true;
+
+        return false;
+    }
+    */
+
+    public Boolean isOnline() {
+        try {
+            URL url = new URL("http://www.google.com");
+            HttpURLConnection urlc = (HttpURLConnection) url.openConnection();
+            urlc.setConnectTimeout(3000);
+            urlc.connect();
+            if (urlc.getResponseCode() == 200) {
+                return true;
+            }
+            else
+            {
+                return false;
+            }
+        } catch (Exception e) {
+            // TODO Auto-generated catch block
+            e.printStackTrace();
+        }
+        return false;
     }
 
     public class InsertTask extends AsyncTask<String, Void, Boolean> {
@@ -623,5 +710,103 @@ public class HomeActivity extends AppCompatActivity
             super.onPostExecute(result);
             Toast.makeText(HomeActivity.this, "Database refreshed", Toast.LENGTH_LONG).show();
         }
+    }
+
+    class TestInternet extends AsyncTask<Void, Void, Boolean> {
+        @Override
+        protected void onPreExecute() {
+            progressDialog = new ProgressDialog(HomeActivity.this);
+            progressDialog.setMessage(progMessage); // Setting Message
+            progressDialog.setTitle(progTitle); // Setting Title
+            progressDialog.setProgressStyle(ProgressDialog.STYLE_SPINNER); // Progress Dialog Style Spinner
+            progressDialog.setCancelable(false);
+            progressDialog.show();
+        }
+
+        @Override
+        protected Boolean doInBackground(Void... params) {
+            try {
+                URL url = new URL("http://www.google.com");
+                HttpURLConnection urlc = (HttpURLConnection) url.openConnection();
+                urlc.setConnectTimeout(3000);
+                urlc.connect();
+                if (urlc.getResponseCode() == 200) {
+                    return true;
+                }
+            } catch (MalformedURLException e1) {
+                // TODO Auto-generated catch block
+                e1.printStackTrace();
+                return false;
+            } catch (IOException e) {
+                // TODO Auto-generated catch block
+                e.printStackTrace();
+                return false;
+            }
+            return false;
+        }
+
+        @Override
+        protected void onPostExecute(Boolean result) {
+            if (!result) { // code if not connected
+                progressDialog.dismiss();
+                Toast.makeText(HomeActivity.this, "NETWORK UNAVAILABLE", Toast.LENGTH_LONG).show();
+            } else { // code if connected
+                if (!processed) {
+                    Toast.makeText(HomeActivity.this, "REFRESHING", Toast.LENGTH_LONG).show();
+                    SharedPreferences settings = PreferenceManager.getDefaultSharedPreferences(getBaseContext());
+                    String SUO = settings.getString("UO",""); //Stored UO
+                    String fileURL = "http://gobierno.euitio.uniovi.es/grado/gd/?y=17-18&t=S2&uo="+SUO;
+                    String saveDir = "/sdcard/Download";
+                    final String[] params = new String[2];
+                    params[0] = fileURL;
+                    params[1] = saveDir;
+                    try {
+                        HttpDownloader.dl(params);
+                        copyFileData(filePath);
+                        if(progressDialog.isShowing())
+                            progressDialog.dismiss();
+                        Toast.makeText(HomeActivity.this, "REFESHED", Toast.LENGTH_LONG).show();
+                    } catch (FileNotFoundException e) {
+                        e.printStackTrace();
+                    }
+                }
+            }
+        }
+    }
+
+    Runnable mStatusChecker = new Runnable() {
+        @Override
+        public void run() {
+            try
+            {
+                final String fileURL = "http://gobierno.euitio.uniovi.es/grado/gd/?y=17-18&t=S2&uo=" + id;
+                String saveDir = "/sdcard/Download";
+                final String[] params = new String[2];
+                params[0] = fileURL;
+                params[1] = saveDir;
+
+                try
+                {
+                    HttpDownloader.dl(params);
+                    copyFileData(filePath);
+                    cpt++;
+                } catch (FileNotFoundException e) {
+                    e.printStackTrace();
+                }
+            }
+            finally {
+                handler.postDelayed(mStatusChecker, delay);
+            }
+        }
+    };
+
+    void startRefreshTask()
+    {
+        mStatusChecker.run();
+    }
+
+    void stopRefreshTask()
+    {
+        handler.removeCallbacks(mStatusChecker);
     }
 }

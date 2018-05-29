@@ -4,6 +4,7 @@ import android.app.Dialog;
 import android.content.Context;
 import android.content.Intent;
 import android.graphics.Color;
+import android.graphics.Paint;
 import android.graphics.RectF;
 import android.graphics.drawable.ColorDrawable;
 import android.os.Bundle;
@@ -47,6 +48,11 @@ public class BasicActivity extends BaseActivity
     }
 
     @Override
+    public void onEmptyViewLongPress(Calendar time) {
+
+    }
+
+    @Override
     public List<? extends WeekViewEvent> onMonthChange(int newYear, int newMonth) {
         // Populate the week view with some events.
         List<WeekViewEvent> events = new ArrayList<WeekViewEvent>();
@@ -65,11 +71,11 @@ public class BasicActivity extends BaseActivity
         {
             startTime = Calendar.getInstance();
             l = classes.get(i);
+            startTime.set(Calendar.HOUR_OF_DAY, l.getHour());
+            startTime.set(Calendar.MINUTE, l.getMinute());
             startTime.set(Calendar.DAY_OF_MONTH, l.dayOfMonth());
             startTime.set(Calendar.MONTH, l.getMonth()-1);
             startTime.set(Calendar.YEAR, l.getYear());
-            startTime.set(Calendar.HOUR_OF_DAY, l.getHour());
-            startTime.set(Calendar.MINUTE, l.getMinute());
             endTime = (Calendar) startTime.clone();
             endTime.set(Calendar.DAY_OF_MONTH, l.EndDayOfMonth());
             endTime.set(Calendar.MONTH, l.getEndMonth()-1);
@@ -108,10 +114,9 @@ public class BasicActivity extends BaseActivity
 
     @Override
     public void onEventClick(WeekViewEvent event, RectF eventRect) {
-        super.onEventClick(event, eventRect);
         title.setText(event.getName());
         icon.setLetter(event.getName().charAt(0));
-        icon.setBackgroundColor(event.getColor());
+        icon.getmBackgroundPaint().setColor(event.getColor());
         Calendar startTime = event.getStartTime();
         Calendar endTime = event.getEndTime();
         String sdm = String.valueOf(startTime.get(Calendar.DAY_OF_MONTH));
@@ -164,5 +169,14 @@ public class BasicActivity extends BaseActivity
                 dialog.dismiss();
             }
         });
+    }
+
+    private boolean eventMatches(WeekViewEvent event, int year, int month) {
+        return (event.getStartTime().get(Calendar.YEAR) == year && event.getStartTime().get(Calendar.MONTH) == month-1) || (event.getEndTime().get(Calendar.YEAR) == year && event.getEndTime().get(Calendar.MONTH) == month - 1);
+    }
+
+    @Override
+    public void onEventLongPress(WeekViewEvent event, RectF eventRect) {
+
     }
 }

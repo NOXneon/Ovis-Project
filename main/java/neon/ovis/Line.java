@@ -3,7 +3,15 @@ package neon.ovis;
 import android.graphics.Color;
 import android.os.Parcel;
 import android.os.Parcelable;
+import android.support.annotation.NonNull;
 
+import java.text.DateFormat;
+import java.text.ParseException;
+import java.text.SimpleDateFormat;
+import java.time.format.DateTimeFormatter;
+import java.util.Calendar;
+import java.util.Comparator;
+import java.util.Date;
 import java.util.Random;
 import java.util.regex.Pattern;
 
@@ -211,6 +219,24 @@ public class Line implements Parcelable
         return  minute;
     }
 
+    public Date sDate()
+    {
+        Calendar cal = Calendar.getInstance();
+        cal.setTimeInMillis(0);
+        cal.set(getYear(), getMonth(), dayOfMonth(), getHour(), getMinute(), 0);
+        Date date = cal.getTime(); // get back a Date object
+        return date;
+    }
+
+    public Date eDate()
+    {
+        Calendar cal = Calendar.getInstance();
+        cal.setTimeInMillis(0);
+        cal.set(getEndYear(), getEndMonth(), EndDayOfMonth(), getEndHour(), getEndMinute(), 0);
+        Date date = cal.getTime(); // get back a Date object
+        return date;
+    }
+
     @Override
     public int describeContents() {
         return 0;
@@ -227,4 +253,14 @@ public class Line implements Parcelable
         dest.writeString(description);
         dest.writeString(location);
     }
+
+    public static Comparator<Line> sort = new Comparator<Line>() {
+        @Override
+        public int compare(Line o1, Line o2) {
+            Date d1 = o1.sDate();
+            Date d2 = o2.sDate();
+
+            return d1.compareTo(d2);
+        }
+    };
 }

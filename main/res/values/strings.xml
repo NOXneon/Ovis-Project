@@ -24,4 +24,10 @@
         <item>Saturday</item>
         <item>Sunday</item>
     </string-array>
+
+    <string name="alarm_on_toast">Stand Up Alarm On!</string>
+    <string name="alarm_off_toast">Stand Up Alarm Off!</string>
+    <string name="notification_title">Stand Up Alert!</string>
+    <string name="notification_text">You should stand up and walk around now!</string>
+    <string name="toggle_label">Stand Up Alarm</string>
 </resources>

@@ -91,4 +91,12 @@ public class LetterImageView extends android.support.v7.widget.AppCompatImageVie
         String[] colorsArr = getResources().getStringArray(R.array.colors);
         return Color.parseColor(colorsArr[random.nextInt(colorsArr.length)]);
     }
+
+    public void setmBackgroundPaint(Paint mBackgroundPaint) {
+        this.mBackgroundPaint = mBackgroundPaint;
+    }
+
+    public Paint getmBackgroundPaint() {
+        return mBackgroundPaint;
+    }
 }

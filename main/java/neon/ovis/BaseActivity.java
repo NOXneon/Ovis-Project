@@ -19,9 +19,8 @@ import android.widget.Toast;
 
 import com.alamkanak.weekview.DateTimeInterpreter;
 import com.alamkanak.weekview.MonthLoader;
-import com.alamkanak.weekview.WeekView;
 import com.alamkanak.weekview.WeekViewEvent;
-
+import com.alamkanak.weekview.WeekViewEvent;
 import java.text.SimpleDateFormat;
 import java.util.Calendar;
 import java.util.Locale;
@@ -123,6 +122,7 @@ public abstract class BaseActivity extends AppCompatActivity implements WeekView
      * date values otherwise.
      * @param shortDate True if the date values should be short.
      */
+    /*
     private void setupDateTimeInterpreter(final boolean shortDate) {
         mWeekView.setDateTimeInterpreter(new DateTimeInterpreter() {
             @Override
@@ -145,32 +145,40 @@ public abstract class BaseActivity extends AppCompatActivity implements WeekView
             }
         });
     }
+    */
+
+    private void setupDateTimeInterpreter(final boolean shortDate) {
+        mWeekView.setDateTimeInterpreter(new DateTimeInterpreter() {
+            @Override
+            public String interpretDate(Calendar date) {
+                SimpleDateFormat weekdayNameFormat = new SimpleDateFormat("EEE", Locale.getDefault());
+                String weekday = weekdayNameFormat.format(date.getTime());
+                SimpleDateFormat format = new SimpleDateFormat(" d/M", Locale.getDefault());
+
+                if (shortDate)
+                    weekday = String.valueOf(weekday.charAt(0));
+                return weekday.toUpperCase() + format.format(date.getTime());
+            }
+
+            @Override
+            public String interpretTime(int hour) {
+                if (hour == 24) hour = 0;
+                if (hour == 0) hour = 0;
+                return hour + ":00";
+            }
+        });
+    }
 
     protected String getEventTitle(Calendar time) {
         return String.format("Event of %02d:%02d %s/%d", time.get(Calendar.HOUR_OF_DAY), time.get(Calendar.MINUTE), time.get(Calendar.MONTH)+1, time.get(Calendar.DAY_OF_MONTH));
     }
 
     @Override
-    public void onEventClick(WeekViewEvent event, RectF eventRect) {
-
-    }
-
-    @Override
-    public void onEventLongPress(WeekViewEvent event, RectF eventRect) {
-        //Toast.makeText(this, "Long pressed event: " + event.getName(), Toast.LENGTH_SHORT).show();
-    }
-
-    @Override
-    public void onEmptyViewLongPress(Calendar time) {
-        //Toast.makeText(this, "Empty view long pressed: " + getEventTitle(time), Toast.LENGTH_SHORT).show();
-    }
+    public abstract void onEmptyViewLongPress(Calendar time);
 
     public WeekView getWeekView() {
         return mWeekView;
     }
 
-    //Check if event matches onMonthChange parameters
-    private boolean eventMatches(WeekViewEvent event, int year, int month) {
-        return (event.getStartTime().get(Calendar.YEAR) == year && event.getStartTime().get(Calendar.MONTH) == (month - 1)) || (event.getEndTime().get(Calendar.YEAR) == year && event.getEndTime().get(Calendar.MONTH) == month - 1);
-    }
+    public abstract void onEventClick(WeekViewEvent event, RectF eventRect);
 }

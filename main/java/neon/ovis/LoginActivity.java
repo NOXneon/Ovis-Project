@@ -32,7 +32,11 @@ import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.IOException;
 import java.io.Serializable;
+import java.net.HttpURLConnection;
+import java.net.MalformedURLException;
+import java.net.URL;
 import java.util.ArrayList;
+import java.util.concurrent.TimeUnit;
 import java.util.regex.Pattern;
 
 public class LoginActivity extends AppCompatActivity {
@@ -45,8 +49,6 @@ public class LoginActivity extends AppCompatActivity {
     private String progMessage = "We are refreshing your timetable";
     private ArrayList<Line> lines;
     private boolean processed = false;
-    private Thread t;
-    private SQLiteDatabase database;
 
     @Override
     protected void onCreate(Bundle savedInstanceState)
@@ -67,44 +69,8 @@ public class LoginActivity extends AppCompatActivity {
 
         if(!SUO.isEmpty())
         {
-            if(isNetworkAvailable())
-            {
-                if(!processed)
-                {
-                    final String fileURL = "http://gobierno.euitio.uniovi.es/grado/gd/?y=17-18&t=S2&uo="+SUO;
-                    String saveDir = "/sdcard/Download";
-                    final String[] params = new String[2];
-                    params[0] = fileURL;
-                    params[1] = saveDir;
-
-                    progressDialog = new ProgressDialog(LoginActivity.this);
-                    progressDialog.setMessage(progMessage); // Setting Message
-                    progressDialog.setTitle(progTitle); // Setting Title
-                    progressDialog.setProgressStyle(ProgressDialog.STYLE_SPINNER); // Progress Dialog Style Spinner
-                    progressDialog.setCancelable(false);
-                    progressDialog.show();
-
-                    try
-                    {
-                        HttpDownloader.dl(params);
-                        copyFileData(filePath);
-                    } catch (FileNotFoundException e)
-                    {
-                        e.printStackTrace();
-                    }
-
-                    Intent intent = new Intent(LoginActivity.this,HomeActivity.class);
-                    Bundle bundle = new Bundle();
-                    bundle.putSerializable("Lines", lines);
-                    intent.putExtras(bundle);
-                    LoginActivity.this.startActivity(intent);
-                    LoginActivity.this.finish();
-                }
-            }
-            else
-            {
-                Toast.makeText(LoginActivity.this, "NETWORK UNAVAILABLE", Toast.LENGTH_LONG).show();
-            }
+            TestInternet it = new TestInternet(SUO);
+            it.execute();
         }
 
         final EditText ETUO = findViewById(R.id.UO); // EditTextUO
@@ -121,7 +87,6 @@ public class LoginActivity extends AppCompatActivity {
                 String uo = ETUO.getText().toString();
                 if(!uo.isEmpty())
                 { //correct
-
                     if(remcb.isChecked())
                     {
                         SharedPreferences settings = PreferenceManager.getDefaultSharedPreferences(getBaseContext());
@@ -133,44 +98,8 @@ public class LoginActivity extends AppCompatActivity {
 
                     if(isStoragePermissionGranted())
                     {
-                        if(isNetworkAvailable())
-                        {
-                            if(!processed)
-                            {
-                                String fileURL = "http://gobierno.euitio.uniovi.es/grado/gd/?y=17-18&t=S2&uo="+uo;
-                                String saveDir = "/sdcard/Download";
-                                final String[] params = new String[2];
-                                params[0] = fileURL;
-                                params[1] = saveDir;
-
-                                progressDialog = new ProgressDialog(LoginActivity.this);
-                                progressDialog.setMessage(progMessage); // Setting Message
-                                progressDialog.setTitle(progTitle); // Setting Title
-                                progressDialog.setProgressStyle(ProgressDialog.STYLE_SPINNER); // Progress Dialog Style Spinner
-                                progressDialog.setCancelable(false);
-                                progressDialog.show();
-
-                                try
-                                {
-                                    HttpDownloader.dl(params);
-                                    copyFileData(filePath);
-                                } catch (FileNotFoundException e)
-                                {
-                                    e.printStackTrace();
-                                }
-
-                                Intent intent = new Intent(LoginActivity.this,HomeActivity.class);
-                                Bundle bundle = new Bundle();
-                                bundle.putSerializable("Lines", lines);
-                                intent.putExtras(bundle);
-                                LoginActivity.this.startActivity(intent);
-                                LoginActivity.this.finish();
-                            }
-                        }
-                        else
-                        {
-                            Toast.makeText(LoginActivity.this, "NETWORK UNAVAILABLE", Toast.LENGTH_LONG).show();
-                        }
+                        TestInternet it = new TestInternet(uo);
+                        it.execute();
                     }
                     else
                     {
@@ -261,6 +190,7 @@ public class LoginActivity extends AppCompatActivity {
 
                         l = new Line(data[0], data[1], data[2], data[3], data[4], data[5], data[6]);
                         db.insertLine(l);
+                        lines.add(l);
                     }
                     catch (Exception e)
                     {
@@ -342,17 +272,84 @@ public class LoginActivity extends AppCompatActivity {
         }
     }
 
-    private boolean isNetworkAvailable()
-    {
-        ConnectivityManager connectivityManager
-                = (ConnectivityManager) getSystemService(Context.CONNECTIVITY_SERVICE);
-        NetworkInfo activeNetworkInfo = connectivityManager.getActiveNetworkInfo();
-        return activeNetworkInfo != null && activeNetworkInfo.isConnected();
-    }
-
     @Override
     public void onConfigurationChanged(Configuration newConfig) {
         processed = true;
         super.onConfigurationChanged(newConfig);
     }
+
+    class TestInternet extends AsyncTask<Void, Void, Boolean> {
+        private String SUO;
+
+        TestInternet(String s)
+        {
+            SUO = s;
+        }
+
+        @Override
+        protected void onPreExecute() {
+            progressDialog = new ProgressDialog(LoginActivity.this);
+            progressDialog.setMessage(progMessage); // Setting Message
+            progressDialog.setTitle(progTitle); // Setting Title
+            progressDialog.setProgressStyle(ProgressDialog.STYLE_SPINNER); // Progress Dialog Style Spinner
+            progressDialog.setCancelable(false);
+            progressDialog.show();
+        }
+
+        @Override
+        protected Boolean doInBackground(Void... params) {
+            try {
+                URL url = new URL("http://www.google.com");
+                HttpURLConnection urlc = (HttpURLConnection) url.openConnection();
+                urlc.setConnectTimeout(3000);
+                urlc.connect();
+                if (urlc.getResponseCode() == 200) {
+                    return true;
+                }
+            } catch (MalformedURLException e1) {
+                // TODO Auto-generated catch block
+                e1.printStackTrace();
+                return false;
+            } catch (IOException e) {
+                // TODO Auto-generated catch block
+                e.printStackTrace();
+                return false;
+            }
+            return false;
+        }
+
+        @Override
+        protected void onPostExecute(Boolean result) {
+            if (!result) { // code if not connected
+                if(progressDialog.isShowing())
+                    progressDialog.dismiss();
+                Toast.makeText(LoginActivity.this, "NETWORK UNAVAILABLE", Toast.LENGTH_LONG).show();
+            } else { // code if connected
+                if (!processed) {
+                    final String fileURL = "http://gobierno.euitio.uniovi.es/grado/gd/?y=17-18&t=S2&uo=" + SUO;
+                    String saveDir = "/sdcard/Download";
+                    final String[] params = new String[2];
+                    params[0] = fileURL;
+                    params[1] = saveDir;
+
+                    try {
+                        HttpDownloader.dl(params);
+                        copyFileData(filePath);
+                        if(progressDialog.isShowing())
+                            progressDialog.dismiss();
+                    } catch (FileNotFoundException e) {
+                        e.printStackTrace();
+                    }
+
+                    Intent intent = new Intent(LoginActivity.this, HomeActivity.class);
+                    Bundle bundle = new Bundle();
+                    bundle.putSerializable("Lines", lines);
+                    intent.putExtras(bundle);
+                    LoginActivity.this.startActivity(intent);
+                    LoginActivity.this.finish();
+                }
+            }
+        }
+    }
 }
+
