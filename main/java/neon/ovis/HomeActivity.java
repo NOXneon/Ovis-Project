@@ -147,12 +147,13 @@ public class HomeActivity extends AppCompatActivity
 
         /* -------------- TODAY DATE ----------- */
 
+        /*
         Time today = new Time(Time.getCurrentTimezone());
         today.setToNow();
         final String[] date = {" "+today.monthDay+"/"+(today.month+1)+"/"+today.year};
+        */
 
-
-        //final String[] date = {" 09/04/2018"};
+        final String[] date = {" 09/04/2018"};
 
         ImageButton prev = findViewById(R.id.prevButton);
         prev.setOnClickListener(new View.OnClickListener() {
@@ -347,8 +348,8 @@ public class HomeActivity extends AppCompatActivity
 
                                     AlarmManager alarmMgr = (AlarmManager)getSystemService(Context.ALARM_SERVICE);
                                     Intent intent = new Intent(HomeActivity.this, AlarmReceiver.class);
-                                    intent.putExtra("Title","Title test");
-                                    intent.putExtra("Content", "Content test");
+                                    intent.putExtra("Title","Est.S.1");
+                                    intent.putExtra("Content", "Class starts in 5 minutes");
                                     PendingIntent pendingIntent = PendingIntent.getBroadcast(HomeActivity.this, 0, intent, PendingIntent.FLAG_UPDATE_CURRENT);
 
 
