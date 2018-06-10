@@ -12,6 +12,7 @@ import android.content.Intent;
 import android.content.SharedPreferences;
 import android.content.res.Configuration;
 import android.graphics.Color;
+import android.graphics.Typeface;
 import android.net.ConnectivityManager;
 import android.net.NetworkInfo;
 import android.os.AsyncTask;
@@ -39,6 +40,9 @@ import android.widget.ScrollView;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import com.google.firebase.iid.FirebaseInstanceId;
+import com.google.firebase.iid.FirebaseInstanceIdService;
+
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileNotFoundException;
@@ -59,8 +63,6 @@ import java.util.regex.Pattern;
 public class HomeActivity extends AppCompatActivity
 {
     private LinearLayout dayTimetable;
-    private ScrollView scrv;
-    private String TAG = "";
     private ListView listView;
     private static String filePath = "/sdcard/Download/plan.csv";
     private TDB db;
@@ -72,13 +74,12 @@ public class HomeActivity extends AppCompatActivity
     private boolean alarmON;
     private boolean processed = false;
     private InsertTask insertTask;
-    private long delay = TimeUnit.DAYS.toMillis(3);
-    //private long delay = TimeUnit.MINUTES.toMillis(3);
-    private int cpt = 0;
+    private static long delay = TimeUnit.DAYS.toMillis(3);
+    private static int alarmDelay = 5;
     private Handler handler;
     private String id;
     private NotificationManager mNotificationManager;
-    private static final int NOTIFICATION_ID = 0;
+    private TestInternet it;
 
     private BottomNavigationView.OnNavigationItemSelectedListener mOnNavigationItemSelectedListener
             = new BottomNavigationView.OnNavigationItemSelectedListener() {
@@ -124,13 +125,24 @@ public class HomeActivity extends AppCompatActivity
         SharedPreferences settings = PreferenceManager.getDefaultSharedPreferences(getBaseContext());
         id = settings.getString("UO",""); //Stored UO
 
-        handler = new Handler();
-        startRefreshTask();
+        Common.currentToken = FirebaseInstanceId.getInstance().getToken();
 
-        /*
+        /* -------------- TODAY DATE ----------- */
+
+
+        Time today = new Time(Time.getCurrentTimezone());
+        today.setToNow();
+        final String[] date = {" "+String.format("%02d",today.monthDay)+"/"+String.format("%02d",today.month+1)+"/"+today.year};
+
+
+        //final String[] date = {" 09/04/2018"};
+
+        handler = new Handler();
+        startRefreshTask(date[0]);
+
+
         insertTask = new InsertTask(this);
         insertTask.execute();
-        */
 
         CardView myWeek = findViewById(R.id.myweek);
         myWeek.setOnClickListener(new View.OnClickListener() {
@@ -144,16 +156,6 @@ public class HomeActivity extends AppCompatActivity
             }
         });
 
-
-        /* -------------- TODAY DATE ----------- */
-
-        /*
-        Time today = new Time(Time.getCurrentTimezone());
-        today.setToNow();
-        final String[] date = {" "+today.monthDay+"/"+(today.month+1)+"/"+today.year};
-        */
-
-        final String[] date = {" 09/04/2018"};
 
         ImageButton prev = findViewById(R.id.prevButton);
         prev.setOnClickListener(new View.OnClickListener() {
@@ -208,7 +210,6 @@ public class HomeActivity extends AppCompatActivity
         next.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                //Toast.makeText(getApplicationContext(),"cpt = "+cpt,Toast.LENGTH_SHORT).show();
                 String[] val = date[0].trim().split(Pattern.quote("/"));
                 int d = Integer.valueOf(val[0]);
                 int m = Integer.valueOf(val[1]);
@@ -254,6 +255,7 @@ public class HomeActivity extends AppCompatActivity
             }
         });
 
+        Log.d("MY TOKEN",Common.currentToken);
 
         classes = new ArrayList<>();
         Line l;
@@ -275,10 +277,25 @@ public class HomeActivity extends AppCompatActivity
             @Override
             public void onClick(View v) {
                 PreferenceManager.getDefaultSharedPreferences(getBaseContext()).edit().clear().apply();
+                AlarmManager alarmMgr = (AlarmManager)getSystemService(Context.ALARM_SERVICE);
+                for (int i=0; i<classes.size(); i++)
+                {
+                    Intent intent = new Intent(HomeActivity.this, AlarmReceiver.class);
+                    PendingIntent pendingIntent = PendingIntent.getBroadcast(HomeActivity.this, i, intent, PendingIntent.FLAG_CANCEL_CURRENT);
+                    alarmMgr.cancel(pendingIntent);
+                }
                 HomeActivity.this.finish();
                 Intent intent = new Intent(HomeActivity.this,LoginActivity.class);
                 HomeActivity.this.startActivity(intent);
                 HomeActivity.this.finish();
+            }
+        });
+
+        final CardView settingsCard = findViewById(R.id.settings);
+        settingsCard.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+
             }
         });
 
@@ -308,11 +325,13 @@ public class HomeActivity extends AppCompatActivity
                                     String[] colors = getResources().getStringArray(R.array.colors);
                                     int color = Color.parseColor(colors[16]);
                                     line[0].setBackgroundColor(color);
-
                                     AlarmManager alarmMgr = (AlarmManager)getSystemService(Context.ALARM_SERVICE);
-                                    Intent intent = new Intent(HomeActivity.this, AlarmReceiver.class);
-                                    PendingIntent pendingIntent = PendingIntent.getBroadcast(HomeActivity.this, 0, intent, PendingIntent.FLAG_CANCEL_CURRENT);
-                                    alarmMgr.cancel(pendingIntent);
+                                    for (int i=0; i<classes.size(); i++)
+                                    {
+                                        Intent intent = new Intent(HomeActivity.this, AlarmReceiver.class);
+                                        PendingIntent pendingIntent = PendingIntent.getBroadcast(HomeActivity.this, i, intent, PendingIntent.FLAG_CANCEL_CURRENT);
+                                        alarmMgr.cancel(pendingIntent);
+                                    }
                                 }
 
                             })
@@ -347,33 +366,10 @@ public class HomeActivity extends AppCompatActivity
                                     progressDialog.show();
 
                                     AlarmManager alarmMgr = (AlarmManager)getSystemService(Context.ALARM_SERVICE);
-                                    Intent intent = new Intent(HomeActivity.this, AlarmReceiver.class);
-                                    intent.putExtra("Title","Est.S.1");
-                                    intent.putExtra("Content", "Class starts in 5 minutes");
-                                    PendingIntent pendingIntent = PendingIntent.getBroadcast(HomeActivity.this, 0, intent, PendingIntent.FLAG_UPDATE_CURRENT);
 
-
-                                    Date lineDate = new Date(2018,5,28,4,59);
-                                    Date currentDate = new Date();
-                                    if(lineDate.after(currentDate))
+                                    for(int i=0; i<classes.size(); i++)
                                     {
-                                        Calendar cal = Calendar.getInstance();
-
-                                        cal.setTimeInMillis(System.currentTimeMillis());
-                                        cal.clear();
-                                        cal.set(Calendar.YEAR, cal.get(Calendar.YEAR));
-                                        cal.set(Calendar.MONTH, cal.get(Calendar.MONTH));
-                                        cal.set(Calendar.DAY_OF_MONTH, cal.get(Calendar.DAY_OF_MONTH));
-                                        cal.set(Calendar.HOUR_OF_DAY, cal.get(Calendar.HOUR_OF_DAY));
-                                        cal.set(Calendar.MINUTE, cal.get(Calendar.MINUTE));
-                                        cal.add(Calendar.MINUTE, 1);
-                                        //cal.set(2018,4,28,4,59);
-                                        alarmMgr.set(AlarmManager.RTC_WAKEUP, cal.getTimeInMillis(), pendingIntent);
-                                    }
-
-                                    /*
-                                    for(Line l : classes)
-                                    {
+                                        Line l = classes.get(i);
                                         Date lineDate = l.sDate();
                                         Date currentDate = new Date();
 
@@ -383,12 +379,18 @@ public class HomeActivity extends AppCompatActivity
 
                                             cal.setTimeInMillis(System.currentTimeMillis());
                                             cal.clear();
-                                            cal.set(l.getYear(),l.getMonth()-1,l.dayOfMonth(),l.getHour(),l.getMinute());
+                                            cal.set(l.getYear(),l.getMonth()-1,l.dayOfMonth(),l.getHour(),l.getMinute()-alarmDelay);
+
+                                            Intent intent = new Intent(HomeActivity.this, AlarmReceiver.class);
+                                            intent.putExtra("Title",l.getSubject());
+                                            intent.putExtra("Content", "Starting in 5 mins. ("+l.getLocation().trim()+")");
+                                            PendingIntent pendingIntent = PendingIntent.getBroadcast(HomeActivity.this, i, intent, PendingIntent.FLAG_UPDATE_CURRENT);
                                             alarmMgr.set(AlarmManager.RTC_WAKEUP, cal.getTimeInMillis(), pendingIntent);
                                         }
                                     }
-                                    */
-                                    progressDialog.dismiss();
+
+                                    if(progressDialog.isShowing())
+                                        progressDialog.dismiss();
                                 }
 
                             })
@@ -448,7 +450,7 @@ public class HomeActivity extends AppCompatActivity
         refresh.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                TestInternet it = new TestInternet();
+                it = new TestInternet();
                 it.execute();
             }
         });
@@ -502,6 +504,17 @@ public class HomeActivity extends AppCompatActivity
             holder.tvTime.setText(times[position]);
             holder.tvLocation.setText(locations[position]);
 
+            int now = Calendar.getInstance().get(Calendar.HOUR_OF_DAY);
+            int c = lines.get(position).getHour();
+
+            if(c == now)
+            {
+                convertView.setBackgroundColor(getResources().getColor(R.color.test));
+                holder.tvSubject.setTypeface(null, Typeface.BOLD);
+                holder.tvTime.setTypeface(null, Typeface.BOLD);
+                holder.tvLocation.setTypeface(null, Typeface.BOLD);
+            }
+
             return convertView;
         }
 
@@ -511,6 +524,13 @@ public class HomeActivity extends AppCompatActivity
             private TextView tvTime;
             private TextView tvLocation;
         }
+    }
+
+    @Override
+    protected void onRestart() {
+        super.onRestart();
+        DayAdapter adapter = new DayAdapter(this, R.layout.activity_home_timetable_item, classes);
+        listView.setAdapter(adapter);
     }
 
     @Override
@@ -530,7 +550,6 @@ public class HomeActivity extends AppCompatActivity
             BufferedReader br = new BufferedReader(new FileReader(file));
             try
             {
-                db.clear();
                 String csvLine;
                 while ((csvLine = br.readLine()) != null)
                 {
@@ -582,8 +601,9 @@ public class HomeActivity extends AppCompatActivity
         }
     }
 
-    void copyFileData(String path) throws FileNotFoundException
+    ArrayList<Line> copyFileData(String path) throws FileNotFoundException
     {
+        ArrayList<Line> res = new ArrayList<>();
         Line l;
         String[] data;
         File file = new File(path);
@@ -594,6 +614,7 @@ public class HomeActivity extends AppCompatActivity
             try
             {
                 String csvLine;
+
                 while ((csvLine = br.readLine()) != null)
                 {
                     if(csvLine.isEmpty())
@@ -624,14 +645,13 @@ public class HomeActivity extends AppCompatActivity
                         data[4] = data[4].trim();
 
                         l = new Line(data[0], data[1], data[2], data[3], data[4], data[5], data[6]);
-                        lines.add(l);
+                        res.add(l);
                     }
                     catch (Exception e)
                     {
                         Log.e("Problem",e.toString());
                     }
                 }
-                db.adjust();
             }
             catch (IOException ex)
             {
@@ -642,6 +662,7 @@ public class HomeActivity extends AppCompatActivity
         {
             Toast.makeText(getApplicationContext(),"TIMETABLE NOT FOUND",Toast.LENGTH_SHORT).show();
         }
+        return res;
     }
 
     @Override
@@ -650,36 +671,6 @@ public class HomeActivity extends AppCompatActivity
         processed = true;
     }
 
-    /*
-    private Boolean isOnline()	{
-        ConnectivityManager cm = (ConnectivityManager)getSystemService(Context.CONNECTIVITY_SERVICE);
-        NetworkInfo ni = cm.getActiveNetworkInfo();
-        if(ni != null && ni.isConnected() && (ni.getType() == ConnectivityManager.TYPE_MOBILE || ni.getType() == ConnectivityManager.TYPE_WIFI))
-            return true;
-
-        return false;
-    }
-    */
-
-    public Boolean isOnline() {
-        try {
-            URL url = new URL("http://www.google.com");
-            HttpURLConnection urlc = (HttpURLConnection) url.openConnection();
-            urlc.setConnectTimeout(3000);
-            urlc.connect();
-            if (urlc.getResponseCode() == 200) {
-                return true;
-            }
-            else
-            {
-                return false;
-            }
-        } catch (Exception e) {
-            // TODO Auto-generated catch block
-            e.printStackTrace();
-        }
-        return false;
-    }
 
     public class InsertTask extends AsyncTask<String, Void, Boolean> {
 
@@ -698,6 +689,7 @@ public class HomeActivity extends AppCompatActivity
         @Override
         protected Boolean doInBackground(String... params) {
             try {
+                copyFileData(filePath);
                 insertFileData(filePath);
             } catch (FileNotFoundException e) {
                 e.printStackTrace();
@@ -764,6 +756,7 @@ public class HomeActivity extends AppCompatActivity
                     try {
                         HttpDownloader.dl(params);
                         copyFileData(filePath);
+                        insertFileData(filePath);
                         if(progressDialog.isShowing())
                             progressDialog.dismiss();
                         Toast.makeText(HomeActivity.this, "REFESHED", Toast.LENGTH_LONG).show();
@@ -785,12 +778,16 @@ public class HomeActivity extends AppCompatActivity
                 final String[] params = new String[2];
                 params[0] = fileURL;
                 params[1] = saveDir;
+                ArrayList<Line> res;
 
                 try
                 {
                     HttpDownloader.dl(params);
-                    copyFileData(filePath);
-                    cpt++;
+                    if(!copyFileData(filePath).isEmpty())
+                    {
+                        res = copyFileData(filePath);
+                        lines = res;
+                    }
                 } catch (FileNotFoundException e) {
                     e.printStackTrace();
                 }
@@ -801,9 +798,18 @@ public class HomeActivity extends AppCompatActivity
         }
     };
 
-    void startRefreshTask()
+    void startRefreshTask(String date)
     {
         mStatusChecker.run();
+        Line l;
+        for (int i=0; i<lines.size(); i++)
+        {
+            l = lines.get(i);
+            if(l.getStartDate().trim().equals(date))
+            {
+                classes.add(l);
+            }
+        }
     }
 
     void stopRefreshTask()

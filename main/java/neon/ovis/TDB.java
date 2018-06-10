@@ -33,6 +33,7 @@ public class TDB extends SQLiteOpenHelper
     {
         super(context, DATABASE_NAME, null, DATABASE_VERSION);
         db = getWritableDatabase();
+        db.enableWriteAheadLogging();
     }
 
     @Override
@@ -49,16 +50,29 @@ public class TDB extends SQLiteOpenHelper
     public long insertLine(Line l)
     {
         ContentValues lineToInsert = new ContentValues();
+        long r = 0;
 
-        lineToInsert.put("subject",l.getSubject());
-        lineToInsert.put("startDate",l.getStartDate());
-        lineToInsert.put("startTime",l.getStartTime());
-        lineToInsert.put("endDate",l.getEndDate());
-        lineToInsert.put("endTime",l.getEndTime());
-        lineToInsert.put("description",l.getDescription());
-        lineToInsert.put("location",l.getLocation());
+        db.beginTransaction();
+        try
+        {
+            lineToInsert.put("subject",l.getSubject());
+            lineToInsert.put("startDate",l.getStartDate());
+            lineToInsert.put("startTime",l.getStartTime());
+            lineToInsert.put("endDate",l.getEndDate());
+            lineToInsert.put("endTime",l.getEndTime());
+            lineToInsert.put("description",l.getDescription());
+            lineToInsert.put("location",l.getLocation());
+            r = db.insert(TABLE_tb, null, lineToInsert);
+            db.setTransactionSuccessful();
+        }
+        catch (Exception e) {e.printStackTrace();}
 
-        return db.insert(TABLE_tb, null, lineToInsert);
+        finally
+        {
+            db.endTransaction();
+        }
+
+        return r;
     }
 
     public void clear()

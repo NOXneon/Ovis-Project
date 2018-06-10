@@ -203,6 +203,14 @@ public class Line implements Parcelable
         return  year;
     }
 
+    public Calendar getSTime()
+    {
+        Calendar cal = Calendar.getInstance();
+        cal.set(Calendar.HOUR_OF_DAY, getHour());
+        cal.set(Calendar.MINUTE, getMinute());
+        return cal;
+    }
+
     public int getEndHour()
     {
         String date = getEndTime().trim();
@@ -223,7 +231,7 @@ public class Line implements Parcelable
     {
         Calendar cal = Calendar.getInstance();
         cal.setTimeInMillis(0);
-        cal.set(getYear(), getMonth(), dayOfMonth(), getHour(), getMinute(), 0);
+        cal.set(getYear(), getMonth()-1, dayOfMonth(), getHour(), getMinute(), 0);
         Date date = cal.getTime(); // get back a Date object
         return date;
     }
@@ -232,7 +240,7 @@ public class Line implements Parcelable
     {
         Calendar cal = Calendar.getInstance();
         cal.setTimeInMillis(0);
-        cal.set(getEndYear(), getEndMonth(), EndDayOfMonth(), getEndHour(), getEndMinute(), 0);
+        cal.set(getEndYear(), getEndMonth()-1, EndDayOfMonth(), getEndHour(), getEndMinute(), 0);
         Date date = cal.getTime(); // get back a Date object
         return date;
     }
@@ -257,10 +265,16 @@ public class Line implements Parcelable
     public static Comparator<Line> sort = new Comparator<Line>() {
         @Override
         public int compare(Line o1, Line o2) {
+            int r = 0;
             Date d1 = o1.sDate();
             Date d2 = o2.sDate();
 
-            return d1.compareTo(d2);
+            if(d1.before(d2))
+                r = -1;
+            if(d1.after(d2))
+                r = 1;
+
+            return r;
         }
     };
 }

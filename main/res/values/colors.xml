@@ -12,6 +12,7 @@
     <color name="accent">#2789e4</color>
     <color name="cv">#eeeeee</color>
     <color name="butcv">#b0bec5</color>
+    <color name="test">#76ff03</color>
 
     <string-array name="colors" translatable="false">
         <item>#99cc00</item>

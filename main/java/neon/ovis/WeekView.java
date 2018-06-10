@@ -58,8 +58,8 @@ public class WeekView extends View {
     public static final int LENGTH_SHORT = 1;
     @Deprecated
     public static final int LENGTH_LONG = 2;
-    private static final int MIN_HOUR = 9;
-    private static final int MAX_HOUR = 20;
+    private static final int MIN_HOUR = 0;
+    private static final int MAX_HOUR = 23;
     private final Context mContext;
     private Paint mTimeTextPaint;
     private float mTimeTextWidth;

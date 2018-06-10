@@ -12,6 +12,7 @@ public class AlarmReceiver extends BroadcastReceiver {
     private static final int NOTIFICATION_ID = 0;
 
     public AlarmReceiver() {
+
     }
 
     @Override
