@@ -15,7 +15,6 @@ public class FirebaseMessaging extends FirebaseMessagingService {
         showNotification(remoteMessage.getNotification());
     }
 
-
     private void showNotification(RemoteMessage.Notification notification) {
         Intent intent = new Intent(this, HomeActivity.class);
         intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP);

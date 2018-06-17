@@ -1,5 +1,6 @@
 package neon.ovis;
 
+import android.app.Activity;
 import android.app.AlarmManager;
 import android.app.AlertDialog;
 import android.app.DatePickerDialog;
@@ -22,6 +23,7 @@ import android.preference.PreferenceManager;
 import android.support.annotation.NonNull;
 import android.support.annotation.Nullable;
 import android.support.design.widget.BottomNavigationView;
+import android.support.v4.content.ContextCompat;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.CardView;
 import android.text.format.Time;
@@ -64,7 +66,7 @@ public class HomeActivity extends AppCompatActivity
 {
     private LinearLayout dayTimetable;
     private ListView listView;
-    private static String filePath = "/sdcard/Download/plan.csv";
+    private static String filePath;
     private TDB db;
     ProgressDialog progressDialog;
     private String progTitle = "Refresh";
@@ -122,6 +124,16 @@ public class HomeActivity extends AppCompatActivity
 
         mNotificationManager = (NotificationManager) getSystemService(NOTIFICATION_SERVICE);
 
+
+        if(externalMemoryAvailable(this))
+        {
+            filePath = "/sdcard/Download/plan.csv";
+        }
+        else
+        {
+            filePath = getDir("plan",MODE_PRIVATE).getPath()+"/plan.csv";
+        }
+
         SharedPreferences settings = PreferenceManager.getDefaultSharedPreferences(getBaseContext());
         id = settings.getString("UO",""); //Stored UO
 
@@ -139,6 +151,7 @@ public class HomeActivity extends AppCompatActivity
 
         handler = new Handler();
         startRefreshTask(date[0]);
+        startNowRefresh();
 
 
         insertTask = new InsertTask(this);
@@ -255,8 +268,6 @@ public class HomeActivity extends AppCompatActivity
             }
         });
 
-        Log.d("MY TOKEN",Common.currentToken);
-
         classes = new ArrayList<>();
         Line l;
         for (int i=0; i<lines.size(); i++)
@@ -276,18 +287,29 @@ public class HomeActivity extends AppCompatActivity
         signout.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                PreferenceManager.getDefaultSharedPreferences(getBaseContext()).edit().clear().apply();
-                AlarmManager alarmMgr = (AlarmManager)getSystemService(Context.ALARM_SERVICE);
-                for (int i=0; i<classes.size(); i++)
-                {
-                    Intent intent = new Intent(HomeActivity.this, AlarmReceiver.class);
-                    PendingIntent pendingIntent = PendingIntent.getBroadcast(HomeActivity.this, i, intent, PendingIntent.FLAG_CANCEL_CURRENT);
-                    alarmMgr.cancel(pendingIntent);
-                }
-                HomeActivity.this.finish();
-                Intent intent = new Intent(HomeActivity.this,LoginActivity.class);
-                HomeActivity.this.startActivity(intent);
-                HomeActivity.this.finish();
+                new AlertDialog.Builder(HomeActivity.this)
+                        .setIcon(R.drawable.ic_signout_black)
+                        .setTitle("Sign out")
+                        .setMessage("Are you sure you want to sign out ?")
+                        .setPositiveButton("Yes", new DialogInterface.OnClickListener() {
+                                    @Override
+                                    public void onClick(DialogInterface dialog, int which) {
+                                        PreferenceManager.getDefaultSharedPreferences(getBaseContext()).edit().clear().apply();
+                                        AlarmManager alarmMgr = (AlarmManager)getSystemService(Context.ALARM_SERVICE);
+                                        for (int i=0; i<classes.size(); i++)
+                                        {
+                                            Intent intent = new Intent(HomeActivity.this, AlarmReceiver.class);
+                                            PendingIntent pendingIntent = PendingIntent.getBroadcast(HomeActivity.this, i, intent, PendingIntent.FLAG_CANCEL_CURRENT);
+                                            alarmMgr.cancel(pendingIntent);
+                                        }
+                                        HomeActivity.this.finish();
+                                        Intent intent = new Intent(HomeActivity.this,LoginActivity.class);
+                                        HomeActivity.this.startActivity(intent);
+                                        HomeActivity.this.finish();
+                                    }
+                                })
+                        .setNegativeButton("No", null)
+                        .show();
             }
         });
 
@@ -379,11 +401,11 @@ public class HomeActivity extends AppCompatActivity
 
                                             cal.setTimeInMillis(System.currentTimeMillis());
                                             cal.clear();
-                                            cal.set(l.getYear(),l.getMonth()-1,l.dayOfMonth(),l.getHour(),l.getMinute()-alarmDelay);
+                                            cal.set(l.getYear(),l.getMonth()-1,l.dayOfMonth(),l.getHour(),l.getMinute()-alarmDelay,0);
 
                                             Intent intent = new Intent(HomeActivity.this, AlarmReceiver.class);
                                             intent.putExtra("Title",l.getSubject());
-                                            intent.putExtra("Content", "Starting in 5 mins. ("+l.getLocation().trim()+")");
+                                            intent.putExtra("Content", "Starting in " + alarmDelay + " minutes. ("+l.getLocation().trim()+")");
                                             PendingIntent pendingIntent = PendingIntent.getBroadcast(HomeActivity.this, i, intent, PendingIntent.FLAG_UPDATE_CURRENT);
                                             alarmMgr.set(AlarmManager.RTC_WAKEUP, cal.getTimeInMillis(), pendingIntent);
                                         }
@@ -450,8 +472,19 @@ public class HomeActivity extends AppCompatActivity
         refresh.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                it = new TestInternet();
-                it.execute();
+                new AlertDialog.Builder(HomeActivity.this)
+                        .setIcon(R.drawable.ic_refresh_black)
+                        .setTitle("Refresh")
+                        .setMessage("Are you sure you want to refresh data ?")
+                        .setPositiveButton("Yes", new DialogInterface.OnClickListener() {
+                            @Override
+                            public void onClick(DialogInterface dialog, int which) {
+                                it = new TestInternet();
+                                it.execute();
+                            }
+                        })
+                        .setNegativeButton("No", null)
+                        .show();
             }
         });
     }
@@ -529,6 +562,20 @@ public class HomeActivity extends AppCompatActivity
     @Override
     protected void onRestart() {
         super.onRestart();
+        Time today = new Time(Time.getCurrentTimezone());
+        today.setToNow();
+        final String[] date = {" "+String.format("%02d",today.monthDay)+"/"+String.format("%02d",today.month+1)+"/"+today.year};
+        classes = new ArrayList<>();
+        Line l;
+        for (int i=0; i<lines.size(); i++)
+        {
+            l = lines.get(i);
+            if(l.getStartDate().trim().equals(date[0].trim()))
+            {
+                classes.add(l);
+            }
+        }
+        Collections.sort(classes, Line.sort);
         DayAdapter adapter = new DayAdapter(this, R.layout.activity_home_timetable_item, classes);
         listView.setAdapter(adapter);
     }
@@ -683,7 +730,7 @@ public class HomeActivity extends AppCompatActivity
         @Override
         protected void onPreExecute() {
             super.onPreExecute();
-            Toast.makeText(HomeActivity.this, "Refreshing database", Toast.LENGTH_LONG).show();
+            //Toast.makeText(HomeActivity.this, "Refreshing database", Toast.LENGTH_LONG).show();
         }
 
         @Override
@@ -745,22 +792,53 @@ public class HomeActivity extends AppCompatActivity
                 Toast.makeText(HomeActivity.this, "NETWORK UNAVAILABLE", Toast.LENGTH_LONG).show();
             } else { // code if connected
                 if (!processed) {
+                    if(progressDialog.isShowing())
+                        progressDialog.dismiss();
                     Toast.makeText(HomeActivity.this, "REFRESHING", Toast.LENGTH_LONG).show();
                     SharedPreferences settings = PreferenceManager.getDefaultSharedPreferences(getBaseContext());
                     String SUO = settings.getString("UO",""); //Stored UO
-                    String fileURL = "http://gobierno.euitio.uniovi.es/grado/gd/?y=17-18&t=S2&uo="+SUO;
-                    String saveDir = "/sdcard/Download";
+                    final String fileURL = "http://gobierno.euitio.uniovi.es/grado/gd/?y=17-18&t=S2&uo="+SUO;
+                    //String saveDir = "/sdcard/Download";
+                    final String saveDir;
+                    if(externalMemoryAvailable(HomeActivity.this))
+                    {
+                        saveDir = "/sdcard/Download";
+                    }
+                    else {
+                        saveDir = getDir("plan",MODE_PRIVATE).getPath();
+                    }
                     final String[] params = new String[2];
                     params[0] = fileURL;
                     params[1] = saveDir;
                     try {
-                        HttpDownloader.dl(params);
+                        Thread t = new Thread(new Runnable() {
+                            @Override
+                            public void run() {
+                                try
+                                {
+                                    HttpDownloadUtility.downloadFile(fileURL, saveDir);
+                                }catch (IOException e)
+                                {
+                                    e.printStackTrace();
+                                    runOnUiThread(new Runnable() {
+                                        @Override
+                                        public void run() {
+                                            if(progressDialog != null && progressDialog.isShowing())
+                                                progressDialog.dismiss();
+                                            Toast.makeText(HomeActivity.this, "INCORRECT UO", Toast.LENGTH_LONG).show();
+                                        }
+                                    });
+                                }
+                            }
+                        });
+                        t.start();
+                        t.join();
                         copyFileData(filePath);
                         insertFileData(filePath);
-                        if(progressDialog.isShowing())
-                            progressDialog.dismiss();
-                        Toast.makeText(HomeActivity.this, "REFESHED", Toast.LENGTH_LONG).show();
+                        Toast.makeText(HomeActivity.this, "Database refreshed", Toast.LENGTH_LONG).show();
                     } catch (FileNotFoundException e) {
+                        e.printStackTrace();
+                    } catch (InterruptedException e) {
                         e.printStackTrace();
                     }
                 }
@@ -774,21 +852,56 @@ public class HomeActivity extends AppCompatActivity
             try
             {
                 final String fileURL = "http://gobierno.euitio.uniovi.es/grado/gd/?y=17-18&t=S2&uo=" + id;
-                String saveDir = "/sdcard/Download";
+                //String saveDir = "/sdcard/Download";
+                final String saveDir;
+                if(externalMemoryAvailable(HomeActivity.this))
+                {
+                    saveDir = "/sdcard/Download";
+                }
+                else {
+                    saveDir = getDir("plan",MODE_PRIVATE).getPath();
+                }
+
                 final String[] params = new String[2];
                 params[0] = fileURL;
                 params[1] = saveDir;
-                ArrayList<Line> res;
+                ArrayList<Line> res = new ArrayList();
+
+                Thread t = new Thread(new Runnable() {
+                    @Override
+                    public void run() {
+                        try {
+                            HttpDownloadUtility.downloadFile(fileURL, saveDir);
+                        }
+                        catch (IOException e)
+                        {
+                            e.printStackTrace();
+                            runOnUiThread(new Runnable() {
+                                @Override
+                                public void run() {
+                                    if(progressDialog != null && progressDialog.isShowing())
+                                        progressDialog.dismiss();
+                                    Toast.makeText(HomeActivity.this, "INCORRECT UO", Toast.LENGTH_LONG).show();
+                                }
+                            });
+                        }
+                    }
+                });
 
                 try
                 {
-                    HttpDownloader.dl(params);
-                    if(!copyFileData(filePath).isEmpty())
-                    {
-                        res = copyFileData(filePath);
-                        lines = res;
+                    t.start();
+                    t.join();
+                    try {
+                        if(!copyFileData(filePath).isEmpty())
+                        {
+                            res = copyFileData(filePath);
+                            lines = res;
+                        }
+                    } catch (FileNotFoundException e) {
+                        e.printStackTrace();
                     }
-                } catch (FileNotFoundException e) {
+                } catch (InterruptedException e) {
                     e.printStackTrace();
                 }
             }
@@ -797,6 +910,39 @@ public class HomeActivity extends AppCompatActivity
             }
         }
     };
+
+    Runnable mNowChecker = new Runnable() {
+        @Override
+        public void run() {
+            Time today = new Time(Time.getCurrentTimezone());
+            today.setToNow();
+            final String[] date = {" "+String.format("%02d",today.monthDay)+"/"+String.format("%02d",today.month+1)+"/"+today.year};
+            classes = new ArrayList<>();
+            Line l;
+            for (int i=0; i<lines.size(); i++)
+            {
+                l = lines.get(i);
+                if(l.getStartDate().trim().equals(date[0].trim()))
+                {
+                    classes.add(l);
+                }
+            }
+            Collections.sort(classes, Line.sort);
+            DayAdapter adapter = new DayAdapter(HomeActivity.this, R.layout.activity_home_timetable_item, classes);
+            listView.setAdapter(adapter);
+            handler.postDelayed(mStatusChecker, TimeUnit.MINUTES.toMillis(30));
+        }
+    };
+
+    void startNowRefresh()
+    {
+        mNowChecker.run();
+    }
+
+    void stopNowRefresh()
+    {
+        handler.removeCallbacks(mNowChecker);
+    }
 
     void startRefreshTask(String date)
     {
@@ -815,5 +961,13 @@ public class HomeActivity extends AppCompatActivity
     void stopRefreshTask()
     {
         handler.removeCallbacks(mStatusChecker);
+    }
+
+    public static boolean externalMemoryAvailable(Activity context) {
+        File[] storages = ContextCompat.getExternalFilesDirs(context, null);
+        if (storages.length > 1 && storages[0] != null && storages[1] != null)
+            return true;
+        else
+            return false;
     }
 }

@@ -5,12 +5,15 @@ import java.io.IOException;
 public class HttpDownloader {
     public static void dl(final String[] args)
     {
+        final String fileURL = args[0];
+        final String saveDir = args[1];
+
         try
         {
-            String fileURL = args[0];
-            String saveDir = args[1];
             HttpDownloadUtility.downloadFile(fileURL, saveDir);
-        } catch (Exception e) {
+        }
+        catch (IOException e)
+        {
             e.printStackTrace();
         }
     }

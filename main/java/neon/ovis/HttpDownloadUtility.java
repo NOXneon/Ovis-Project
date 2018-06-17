@@ -24,7 +24,7 @@ public class HttpDownloadUtility
         int responseCode = httpConn.getResponseCode();
 
         // always check HTTP response code first
-        if (responseCode == HttpURLConnection.HTTP_OK) {
+        if (responseCode == HttpURLConnection.HTTP_OK && !httpConn.getContentType().equals("text/html")) {
             String fileName = "";
             String disposition = httpConn.getHeaderField("Content-Disposition");
             String contentType = httpConn.getContentType();
@@ -47,6 +47,7 @@ public class HttpDownloadUtility
             System.out.println("Content-Disposition = " + disposition);
             System.out.println("Content-Length = " + contentLength);
             System.out.println("fileName = " + fileName);
+            System.out.println("saveDir = " + saveDir);
 
             // opens input stream from the HTTP connection
             InputStream inputStream = httpConn.getInputStream();
@@ -67,6 +68,7 @@ public class HttpDownloadUtility
             System.out.println("File downloaded");
         } else {
             System.out.println("No file to download. Server replied HTTP code: " + responseCode);
+            throw new IOException();
         }
         httpConn.disconnect();
     }
