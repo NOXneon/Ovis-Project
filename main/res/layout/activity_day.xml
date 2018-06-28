@@ -4,7 +4,43 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    tools:context=".DayActivity">
+    tools:context=".DayActivity"
+    android:orientation="vertical">
+
+        <RelativeLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content">
+
+                <ImageButton
+                    android:id="@+id/prevButton"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_alignParentLeft="true"
+                    android:layout_marginTop="10dp"
+                    android:backgroundTint="#1565c0"
+                    app:srcCompat="@drawable/ic_previous" />
+
+                <TextView
+                    android:id="@+id/titleHome"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="TODAY"
+                    android:layout_marginTop="10dp"
+                    android:textStyle="bold"
+                    android:textColor="#1565c0"
+                    android:textSize="30dp"
+                    android:layout_centerHorizontal="true"
+                    android:layout_centerVertical="true"/>
+
+                <ImageButton
+                    android:id="@+id/nextButton"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="10dp"
+                    android:layout_alignParentRight="true"
+                    android:backgroundTint="#1565c0"
+                    app:srcCompat="@drawable/ic_next"/>
+        </RelativeLayout>
 
         <ListView
             android:id="@+id/dayTimetablelv"

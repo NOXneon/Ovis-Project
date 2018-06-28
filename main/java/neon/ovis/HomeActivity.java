@@ -66,6 +66,8 @@ public class HomeActivity extends AppCompatActivity
 {
     private LinearLayout dayTimetable;
     private ListView listView;
+    private ListView ntfLV;
+    private LinearLayout ntfLayout;
     private static String filePath;
     private TDB db;
     ProgressDialog progressDialog;
@@ -82,6 +84,7 @@ public class HomeActivity extends AppCompatActivity
     private String id;
     private NotificationManager mNotificationManager;
     private TestInternet it;
+    private ArrayList<Notification> ntfs;
 
     private BottomNavigationView.OnNavigationItemSelectedListener mOnNavigationItemSelectedListener
             = new BottomNavigationView.OnNavigationItemSelectedListener() {
@@ -94,16 +97,19 @@ public class HomeActivity extends AppCompatActivity
                     setTitle(R.string.title_home);
                     scrv.setVisibility(View.GONE);
                     dayTimetable.setVisibility(View.VISIBLE);
+                    ntfLayout.setVisibility(View.GONE);
                     return true;
                 case R.id.navigation_dashboard:
                     setTitle(R.string.title_dashboard);
                     scrv.setVisibility(View.VISIBLE);
                     dayTimetable.setVisibility(View.GONE);
+                    ntfLayout.setVisibility(View.GONE);
                     return true;
                 case R.id.navigation_notifications:
                     setTitle(R.string.title_notifications);
                     scrv.setVisibility(View.GONE);
                     dayTimetable.setVisibility(View.GONE);
+                    ntfLayout.setVisibility(View.VISIBLE);
                     return true;
             }
             return false;
@@ -118,7 +124,10 @@ public class HomeActivity extends AppCompatActivity
         lines = getIntent().getParcelableArrayListExtra("Lines");
         dayTimetable = findViewById(R.id.dayTimetable);
         dayTimetable.setVisibility(View.VISIBLE);
+        ntfLayout = findViewById(R.id.myNtf);
         listView = findViewById(R.id.dayTimetablelv);
+        ntfLV = findViewById(R.id.ntflv);
+        ntfs = db.getNotifications();
         BottomNavigationView navigation = findViewById(R.id.navigation);
         navigation.setOnNavigationItemSelectedListener(mOnNavigationItemSelectedListener);
 
@@ -174,7 +183,6 @@ public class HomeActivity extends AppCompatActivity
         prev.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-
                 String[] val = date[0].trim().split(Pattern.quote("/"));
                 int d = Integer.valueOf(val[0]);
                 int m = Integer.valueOf(val[1]);
@@ -261,10 +269,8 @@ public class HomeActivity extends AppCompatActivity
                 }
 
                 Collections.sort(classes, Line.sort);
-
                 DayAdapter adapter = new DayAdapter(HomeActivity.this, R.layout.activity_home_timetable_item, classes);
                 listView.setAdapter(adapter);
-
             }
         });
 
@@ -282,6 +288,11 @@ public class HomeActivity extends AppCompatActivity
 
         DayAdapter adapter = new DayAdapter(this, R.layout.activity_home_timetable_item, classes);
         listView.setAdapter(adapter);
+
+        NotificationAdapter ntfAdapter = new NotificationAdapter(this, R.layout.activity_home_notification_item, ntfs);
+        ntfLV.setAdapter(ntfAdapter);
+
+        startNtfsref();
 
         CardView signout = findViewById(R.id.disconnect);
         signout.setOnClickListener(new View.OnClickListener() {
@@ -318,6 +329,18 @@ public class HomeActivity extends AppCompatActivity
             @Override
             public void onClick(View v) {
 
+            }
+        });
+
+        final CardView syncCard = findViewById(R.id.sync);
+        syncCard.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                Intent intent = new Intent(HomeActivity.this,MainActivity.class);
+                Bundle bundle = new Bundle();
+                bundle.putSerializable("Lines", lines);
+                intent.putExtras(bundle);
+                HomeActivity.this.startActivity(intent);
             }
         });
 
@@ -457,6 +480,8 @@ public class HomeActivity extends AppCompatActivity
                         Intent intent = new Intent(HomeActivity.this,DayActivity.class);
                         Bundle bundle = new Bundle();
                         bundle.putSerializable("Lines", classes);
+                        bundle.putSerializable("Classes", lines);
+                        bundle.putSerializable("CurrentDate", date);
                         intent.putExtras(bundle);
                         HomeActivity.this.startActivity(intent);
                     }
@@ -523,6 +548,7 @@ public class HomeActivity extends AppCompatActivity
             String[] classes = new String[lines.size()];
             String[] times = new String[lines.size()];
             String[] locations = new String[lines.size()];
+
             for(int i=0; i<lines.size(); i++)
             {
                 classes[i] = lines.get(i).getSubject();
@@ -559,6 +585,65 @@ public class HomeActivity extends AppCompatActivity
         }
     }
 
+    public class NotificationAdapter extends ArrayAdapter
+    {
+        private int resource;
+        private LayoutInflater layoutInflater;
+        private ArrayList<Notification> lines;
+
+        public NotificationAdapter(Context context, int resource, ArrayList<Notification> objects) {
+            super(context, resource, objects);
+            this.resource = resource;
+            this.lines = objects;
+            layoutInflater = (LayoutInflater) context.getSystemService(Context.LAYOUT_INFLATER_SERVICE);
+        }
+
+        @Override
+        public View getView(int position, @Nullable View convertView, @NonNull ViewGroup parent) {
+            NotificationAdapter.ViewHolder holder;
+            if(convertView==null)
+            {
+                holder = new NotificationAdapter.ViewHolder();
+                convertView = layoutInflater.inflate(resource,null);
+                holder.ivLogo = convertView.findViewById(R.id.ivClassLetter);
+                holder.Title = convertView.findViewById(R.id.Title);
+                holder.Date = convertView.findViewById(R.id.Date);
+                holder.Message = convertView.findViewById(R.id.Message);
+                convertView.setTag(holder);
+            }
+            else
+            {
+                holder = (NotificationAdapter.ViewHolder) convertView.getTag();
+            }
+
+            String[] titles = new String[lines.size()];
+            String[] dates = new String[lines.size()];
+            String[] messages = new String[lines.size()];
+            for(int i=0; i<lines.size(); i++)
+            {
+                titles[i] = lines.get(i).getTitle();
+                dates[i] = lines.get(i).getDate();
+                messages[i] = lines.get(i).getMsg();
+            }
+
+            //holder.ivLogo.setOval(true);
+            holder.ivLogo.setLetter(titles[position].toUpperCase().charAt(0));
+            holder.Title.setText(titles[position]);
+            holder.Date.setText(dates[position]);
+            holder.Message.setText(messages[position]);
+
+            return convertView;
+        }
+
+
+        class ViewHolder {
+            private LetterImageView ivLogo;
+            private TextView Title;
+            private TextView Date;
+            private TextView Message;
+        }
+    }
+
     @Override
     protected void onRestart() {
         super.onRestart();
@@ -578,12 +663,15 @@ public class HomeActivity extends AppCompatActivity
         Collections.sort(classes, Line.sort);
         DayAdapter adapter = new DayAdapter(this, R.layout.activity_home_timetable_item, classes);
         listView.setAdapter(adapter);
+        NotificationAdapter ntfAdapter = new NotificationAdapter(this, R.layout.activity_home_notification_item, ntfs);
+        ntfLV.setAdapter(ntfAdapter);
     }
 
     @Override
     protected void onDestroy() {
         super.onDestroy();
         stopRefreshTask();
+        stopRefNtfs();
     }
 
     void insertFileData(String path) throws FileNotFoundException
@@ -717,7 +805,6 @@ public class HomeActivity extends AppCompatActivity
         super.onConfigurationChanged(newConfig);
         processed = true;
     }
-
 
     public class InsertTask extends AsyncTask<String, Void, Boolean> {
 
@@ -910,6 +997,26 @@ public class HomeActivity extends AppCompatActivity
             }
         }
     };
+
+    Runnable refNtfs = new Runnable() {
+        @Override
+        public void run() {
+            ntfs = db.getNotifications();
+            NotificationAdapter ntfAdapter = new NotificationAdapter(HomeActivity.this, R.layout.activity_home_notification_item, ntfs);
+            ntfLV.setAdapter(ntfAdapter);
+            handler.postDelayed(mStatusChecker, TimeUnit.SECONDS.toMillis(30));
+        }
+    };
+
+    void startNtfsref()
+    {
+        refNtfs.run();
+    }
+
+    void stopRefNtfs()
+    {
+        handler.removeCallbacks(refNtfs);
+    }
 
     Runnable mNowChecker = new Runnable() {
         @Override

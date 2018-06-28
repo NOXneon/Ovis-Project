@@ -28,6 +28,14 @@ public class TDB extends SQLiteOpenHelper
             + "description VARCHAR(250) NOT NULL,"
             + "location VARCHAR(250) NOT NULL"
             + ")";
+    private static String TABLE_ntf = "Notification";
+    private static String CREATE_TABLE_Ntf = "CREATE TABLE "
+            + TABLE_ntf + " ( "
+            + "id integer PRIMARY KEY AUTOINCREMENT,"
+            + "title VARCHAR(250) NOT NULL,"
+            + "msg VARCHAR(500) NOT NULL,"
+            + "date VARCHAR(250) NOT NULL"
+            + ")";
 
     public TDB(Context context)
     {
@@ -39,11 +47,13 @@ public class TDB extends SQLiteOpenHelper
     @Override
     public void onCreate(SQLiteDatabase db) {
         db.execSQL(CREATE_TABLE_Tb);
+        db.execSQL(CREATE_TABLE_Ntf);
     }
 
     @Override
     public void onUpgrade(SQLiteDatabase db, int oldVersion, int newVersion) {
         db.execSQL("DROP TABLE IF EXISTS " + TABLE_tb);
+        db.execSQL("DROP TABLE IF EXISTS " + TABLE_ntf);
         onCreate(db);
     }
 
@@ -75,10 +85,34 @@ public class TDB extends SQLiteOpenHelper
         return r;
     }
 
+    public long insertNtf(Notification n)
+    {
+        ContentValues lineToInsert = new ContentValues();
+        long r = 0;
+
+        db.beginTransaction();
+        try
+        {
+            lineToInsert.put("title",n.getTitle());
+            lineToInsert.put("msg",n.getMsg());
+            lineToInsert.put("date",n.getDate());
+            r = db.insert(TABLE_ntf, null, lineToInsert);
+            db.setTransactionSuccessful();
+        }
+        catch (Exception e) {e.printStackTrace();}
+
+        finally
+        {
+            db.endTransaction();
+        }
+
+        return r;
+    }
+
     public void clear()
     {
         db.execSQL("DROP TABLE IF EXISTS " + TABLE_tb);
-        onCreate(db);
+        db.execSQL(CREATE_TABLE_Tb);
     }
 
     public void adjust()
@@ -114,6 +148,7 @@ public class TDB extends SQLiteOpenHelper
         return lines;
     }
 
+
     public ArrayList<Line> recup_lines()
     {
         ArrayList<Line> lines = new ArrayList<>();
@@ -139,6 +174,28 @@ public class TDB extends SQLiteOpenHelper
             }
         }
         cursorResults.close();
+        return lines;
+    }
+
+    public ArrayList<Notification> getNotifications()
+    {
+        ArrayList<Notification> lines = new ArrayList<>();
+        String[] string_line = new String[]{"id","title","msg","date"};
+
+        Cursor cursor = db.query(false, TABLE_ntf, string_line, null, null, null, null, "date DESC",null);
+
+        if(cursor!=null)
+        {
+            if(cursor.moveToFirst())
+            {
+                do {
+                    Notification n = new Notification(cursor.getString(0), cursor.getString(1), cursor.getString(2), cursor.getString(3));
+                    lines.add(n);
+                }
+                while (cursor.moveToNext());
+            }
+        }
+        cursor.close();
         return lines;
     }
 }

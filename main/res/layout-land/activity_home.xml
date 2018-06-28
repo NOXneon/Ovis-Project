@@ -348,6 +348,57 @@
                         </LinearLayout>
                     </android.support.v7.widget.CardView>
 
+
+                </LinearLayout>
+
+                <LinearLayout
+                    android:clipToPadding="false"
+                    android:gravity="center"
+                    android:id="@+id/range4"
+                    android:orientation="horizontal"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content">
+
+                    <android.support.v7.widget.CardView
+                        android:layout_height="160dp"
+                        android:layout_width="190dp"
+                        android:layout_margin="10dp"
+                        android:id="@+id/sync">
+
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="match_parent"
+                            android:orientation="vertical"
+                            android:gravity="center">
+
+                            <ImageView
+                                android:layout_width="64dp"
+                                android:layout_height="64dp"
+                                android:id="@+id/syncIcon"
+                                android:background="@drawable/cerclevert"
+                                app:srcCompat="@drawable/ic_sync"
+                                android:padding="10dp"/>
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:textStyle="bold"
+                                android:layout_marginTop="10dp"
+                                android:text="Sync"/>
+                            <View
+                                android:id="@+id/syncLine"
+                                android:layout_width="match_parent"
+                                android:layout_height="10dp"
+                                android:background="#69F0AE"
+                                android:layout_margin="10dp"/>
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:gravity="center"
+                                android:text="Click to synchronize"/>
+
+                        </LinearLayout>
+                    </android.support.v7.widget.CardView>
+
                 </LinearLayout>
 
             </LinearLayout>

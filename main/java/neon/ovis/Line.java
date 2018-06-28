@@ -5,6 +5,8 @@ import android.os.Parcel;
 import android.os.Parcelable;
 import android.support.annotation.NonNull;
 
+import com.google.api.client.util.DateTime;
+
 import java.text.DateFormat;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
@@ -236,12 +238,24 @@ public class Line implements Parcelable
         return date;
     }
 
+    public DateTime sDateTime()
+    {
+        DateTime date = new DateTime(sDate());
+        return date;
+    }
+
     public Date eDate()
     {
         Calendar cal = Calendar.getInstance();
         cal.setTimeInMillis(0);
         cal.set(getEndYear(), getEndMonth()-1, EndDayOfMonth(), getEndHour(), getEndMinute(), 0);
         Date date = cal.getTime(); // get back a Date object
+        return date;
+    }
+
+    public DateTime eDateTime()
+    {
+        DateTime date = new DateTime(eDate());
         return date;
     }
 

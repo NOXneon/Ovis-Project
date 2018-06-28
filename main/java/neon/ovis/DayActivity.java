@@ -10,28 +10,146 @@ import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.ArrayAdapter;
+import android.widget.ImageButton;
 import android.widget.LinearLayout;
 import android.widget.ListView;
 import android.widget.TextView;
 
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Calendar;
+import java.util.Collections;
+import java.util.regex.Pattern;
 
 public class DayActivity extends AppCompatActivity {
 
     private ListView listView;
+    private ArrayList<Line> classes;
+    private ArrayList<Line> lines;
+    private String mDate;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_day);
         listView = findViewById(R.id.dayTimetablelv);
-        ArrayList<Line> lines = getIntent().getParcelableArrayListExtra("Lines");
+        lines = new ArrayList<Line>();
+        lines = getIntent().getParcelableArrayListExtra("Lines");
+        classes = new ArrayList<Line>();
+        classes = getIntent().getParcelableArrayListExtra("Classes");
+        mDate = getIntent().getStringExtra("CurrentDate");
+        TextView title = findViewById(R.id.titleHome);
+        title.setText(lines.get(0).getStartDate());
+
+        final ImageButton prev = findViewById(R.id.prevButton);
+        prev.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                    //String date = lines.get(0).getStartDate();
+                    String date = mDate;
+                    String[] val = date.trim().split(Pattern.quote("/"));
+                    int d = Integer.valueOf(val[0]);
+                    int m = Integer.valueOf(val[1]);
+                    int y = Integer.valueOf(val[2]);
+                    Calendar fd = Calendar.getInstance();
+                    fd.set(Calendar.DAY_OF_MONTH, d);
+                    fd.set(Calendar.MONTH, m-1);
+                    fd.set(Calendar.YEAR, y);
+                    fd.add(Calendar.DATE, -1);
+                    d = fd.get(Calendar.DAY_OF_MONTH);
+                    m = fd.get(Calendar.MONTH)+1;
+                    y = fd.get(Calendar.YEAR);
+                    String sd = " " + String.format("%02d",d) + "/" + String.format("%02d",m) + "/" + y;
+
+                    TextView title = findViewById(R.id.titleHome);
+                    SimpleDateFormat format = new SimpleDateFormat("dd/MM/YYYY");
+                    String currentDate = format.format(Calendar.getInstance().getTime());
+
+                    date = sd;
+                    mDate = sd;
+
+                    if(sd.trim().equals(currentDate.trim()))
+                    {
+                        sd = "TODAY";
+                    }
+                    title.setText(sd.trim());
+
+                    lines.clear();
+
+                    Line l;
+                    for (int i = 0; i< classes.size(); i++)
+                    {
+                        l = classes.get(i);
+                        if(l.getStartDate().trim().equals(date.trim()))
+                        {
+                            lines.add(l);
+                        }
+                    }
+
+
+                    Collections.sort(lines, Line.sort);
+
+                    DayActivity.DayAdapter adapter = new DayActivity.DayAdapter(DayActivity.this, R.layout.activity_day_timetable_item, lines);
+                    listView.setAdapter(adapter);
+            }
+        });
+
+        final ImageButton next = findViewById(R.id.nextButton);
+        next.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                    //String date = lines.get(0).getStartDate();
+                    String date = mDate;
+                    String[] val = date.trim().split(Pattern.quote("/"));
+                    int d = Integer.valueOf(val[0]);
+                    int m = Integer.valueOf(val[1]);
+                    int y = Integer.valueOf(val[2]);
+                    Calendar fd = Calendar.getInstance();
+                    fd.set(Calendar.DAY_OF_MONTH, d);
+                    fd.set(Calendar.MONTH, m-1);
+                    fd.set(Calendar.YEAR, y);
+                    fd.add(Calendar.DATE, 1);
+                    d = fd.get(Calendar.DAY_OF_MONTH);
+                    m = fd.get(Calendar.MONTH)+1;
+                    y = fd.get(Calendar.YEAR);
+                    String sd = " " + String.format("%02d",d) + "/" + String.format("%02d",m) + "/" + y;
+
+                    TextView title = findViewById(R.id.titleHome);
+                    SimpleDateFormat format = new SimpleDateFormat("dd/MM/YYYY");
+                    String currentDate = format.format(Calendar.getInstance().getTime());
+
+                    date = sd;
+                    mDate = sd;
+
+                    if(sd.trim().equals(currentDate.trim()))
+                    {
+                        sd = "TODAY";
+                    }
+                    title.setText(sd.trim());
+
+                    lines.clear();
+                    Line l;
+                    for (int i = 0; i< classes.size(); i++)
+                    {
+                        l = classes.get(i);
+                        if(l.getStartDate().trim().equals(date.trim()))
+                        {
+                            lines.add(l);
+                        }
+                    }
+
+                    Collections.sort(lines, Line.sort);
+
+                    DayActivity.DayAdapter adapter = new DayActivity.DayAdapter(DayActivity.this, R.layout.activity_day_timetable_item, lines);
+                    listView.setAdapter(adapter);
+            }
+        });
+
         DayActivity.DayAdapter adapter = new DayActivity.DayAdapter(this, R.layout.activity_day_timetable_item, lines);
         listView.setAdapter(adapter);
     }
 
     public class DayAdapter extends ArrayAdapter {
-
         private int resource;
         private LayoutInflater layoutInflater;
         private ArrayList<Line> lines;

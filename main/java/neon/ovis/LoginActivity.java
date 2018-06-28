@@ -68,7 +68,6 @@ public class LoginActivity extends AppCompatActivity {
 
         lines = new ArrayList<>();
         db = new TDB(this);
-        db.clear();
 
         if(externalMemoryAvailable(this))
         {
